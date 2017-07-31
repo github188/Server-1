@@ -1,0 +1,27 @@
+{
+  "server":[
+    {
+      "deviceID": "pc1111",
+      "memory": "pc2222",
+      "netBandwidth": "pc3333",
+      "disk": "pc4444",
+      "sysDesc": "pc5555"
+    },
+    {
+      "deviceID": "bijiben",
+      "cpu": "bijiben1111",
+      "disk": "bijiben4444",
+      "sysDesc": "bijiben5555",
+      "temperature": "bijiben6666"
+    }
+  ],
+  "switches": [
+    {
+      "sysDesc": "cisco5555",
+      "temperature": "cisco6666"
+    },
+    {
+      "deviceID": "huawei"
+    }
+  ]
+}

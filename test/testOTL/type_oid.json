@@ -1,0 +1,21 @@
+{
+  "FusionServer 2288V3": {
+    "sysUpTime": "1.3.6.1.2.1.1.3.0",
+    "sysDesc": "1.3.6.1.2.1.1.1.0"
+  },
+  "H&i Server 2101": {
+    "sysDesc": "1.3.6.1.2.1.1.1.0",
+    "sysName": "1.3.6.1.2.1.1.5.0"
+  },
+  "RG-WALL 1600-M6600": {
+    "memory": "pc2222",
+    "netBandwidth": "pc3333",
+    "sysDesc": "cisco5555",
+    "temperature": "cisco6666"
+  },
+  "RG-IS2706G": {
+    "cpu": "bijiben1111",
+    "disk": "bijiben4444",
+    "temperature": "bijiben6666"
+  }
+}

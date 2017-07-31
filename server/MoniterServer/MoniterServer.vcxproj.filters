@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="App">
+      <UniqueIdentifier>{4be6e640-3711-4552-a442-962c6c7daefe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Snmp">
+      <UniqueIdentifier>{0109837b-2feb-4309-9559-62685e9cc925}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RAII">
+      <UniqueIdentifier>{ecc0f843-e2d5-4c8a-a5b7-2eff0f9f2847}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DealDeviceData">
+      <UniqueIdentifier>{54884b63-07ec-4335-a565-d531b2f9dd5a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="log">
+      <UniqueIdentifier>{6573e293-9b25-4ba6-b3c9-727873ddca02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParseIni">
+      <UniqueIdentifier>{e1fa7e0a-2a99-4687-bfb9-ed65cade81cc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.cpp">
+      <Filter>App</Filter>
+    </ClCompile>
+    <ClCompile Include="snmp.cpp">
+      <Filter>Snmp</Filter>
+    </ClCompile>
+    <ClCompile Include="DealDeviceData.cpp">
+      <Filter>DealDeviceData</Filter>
+    </ClCompile>
+    <ClCompile Include="ParseIni.cpp">
+      <Filter>ParseIni</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="snmp.h">
+      <Filter>Snmp</Filter>
+    </ClInclude>
+    <ClInclude Include="RAII.h">
+      <Filter>RAII</Filter>
+    </ClInclude>
+    <ClInclude Include="DealDeviceData.h">
+      <Filter>DealDeviceData</Filter>
+    </ClInclude>
+    <ClInclude Include="LogMacros.h">
+      <Filter>log</Filter>
+    </ClInclude>
+    <ClInclude Include="ParseIni.h">
+      <Filter>ParseIni</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
