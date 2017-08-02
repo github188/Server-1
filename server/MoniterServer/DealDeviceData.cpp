@@ -129,7 +129,10 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					case SNMP_SYNTAX_IPADDR:
 					case SNMP_SYNTAX_NSAPADDR:
 					{
-						std::string str = reinterpret_cast<char*>(value.value.string.ptr);
+						char desc[500] = { 0 };
+						memcpy(desc, value.value.string.ptr, value.value.string.len);
+						std::string str = desc;
+						//std::string str1 = reinterpret_cast<char*>(value.value.string.ptr);
 						device_data[dca].emplace(std::make_pair(key_name, str));
 						SnmpFreeDescriptor(value.syntax, &(value.value.string));
 						break;
@@ -415,7 +418,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 				this_port_flow.emplace_back(port_flow);
 			}
 			auto iter = device_port_flow.find(dca);
-			if (iter != device_port_flow.end()) //this device has last port_flow data
+			if (iter != device_port_flow.end() && !(iter->second.empty())) //this device has last port_flow data
 			{
 				std::vector<float> net_use_rate;
 				float net_useRate_all = 0;
@@ -473,7 +476,8 @@ Retry:
 				message << impl->this_ptr->cm_.dbUser_name << "/" << impl->this_ptr->cm_.db_password << "@" <<
 					impl->this_ptr->cm_.db_ip << ":" << impl->this_ptr->cm_.db_port << "/" << impl->this_ptr->cm_.db_name;
 				db_ptr->rlogon(message.str().c_str());
-			}	
+			}
+
 			otl_nocommit_stream o1(1, sql.str().c_str(), *db_ptr);
 			db_ptr->commit();
 			o1.close(true);

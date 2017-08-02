@@ -1,8 +1,10 @@
 #include "DealDeviceData.h"
 #include "glog.h"
 #include "LogMacros.h"
+#include "crashDump.h"
 int main()
 {
+	crashDump();
 	std::shared_ptr<Platform::DealDeviceData> ptr(new Platform::DealDeviceData);
 	try
 	{

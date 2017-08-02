@@ -50,5 +50,8 @@
     <ClInclude Include="ParseIni.h">
       <Filter>ParseIni</Filter>
     </ClInclude>
+    <ClInclude Include="crashDump.h">
+      <Filter>log</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
