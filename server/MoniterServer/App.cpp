@@ -1,5 +1,4 @@
 #include "DealDeviceData.h"
-#include "glog.h"
 #include "LogMacros.h"
 #include "crashDump.h"
 int main()

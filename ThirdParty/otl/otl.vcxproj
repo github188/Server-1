@@ -102,7 +102,7 @@
       <SubSystem>Console</SubSystem>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy /Y /A $(ProjectDir)oracle\dll  $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
+      <Command>xcopy /Y  $(ProjectDir)oracle\dll  $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

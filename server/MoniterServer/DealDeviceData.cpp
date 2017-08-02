@@ -71,7 +71,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					break;
 				}
 			}
-			
+
 			void* vblist = nullptr;
 			snmp_ptr->getPduData(recvPdu, vblist);
 			WwFoundation::RAII getPduData_raii([snmp_ptr, vblist]()
@@ -165,7 +165,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 				{
 					all_get = true;
 					is_oid_whole[dca] = false;
-				}		
+				}
 			}
 		}
 		catch (const std::exception& e)
@@ -441,15 +441,15 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					MONITERSERVER_INFO("the device(id:%s) maybe reboot,net_useRate_average is %f", dca.deviceId.c_str(), net_useRate_average);
 					net_useRate_average = 0;
 				}
-				if (this_port_flow.size() > 1)
-				{
-					auto iter_max = std::max_element(net_use_rate.begin(), net_use_rate.end());
-					sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
-					if (*iter_max < (float)100)
-						sql_value << "," << "'" << *iter_max << "'";
-					else
-						sql_value << "," << "'" << 0 << "'"; //reboot,so 0	
-				}
+				//if (this_port_flow.size() > 1)
+				//{
+				auto iter_max = std::max_element(net_use_rate.begin(), net_use_rate.end());
+				sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
+				if (*iter_max < (float)100)
+					sql_value << "," << "'" << *iter_max << "'";
+				else
+					sql_value << "," << "'" << 0 << "'"; //reboot,so 0	
+				//}
 
 				sql << "," << Platform::DEVICE_BANDWIDTH_USE_AVERAGE;
 				sql_value << "," << "'" << net_useRate_average << "'";
@@ -467,7 +467,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		//int elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>
 		//	(end - start).count();
 		bool need_rlogon = false;
-Retry:
+	Retry:
 		try
 		{
 			if (need_rlogon)
@@ -625,7 +625,7 @@ void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttrib
 
 bool Platform::DealDeviceData::isDeviceChange(std::vector<DeviceCompareAttribute>& device_compare_attribute, std::vector<DeviceCompareAttribute>& add_device, std::vector<DeviceCompareAttribute>& decrease_device)
 {
-	if(device_compare_attribute_== device_compare_attribute)
+	if (device_compare_attribute_ == device_compare_attribute)
 		return false;
 	else
 	{
@@ -683,7 +683,7 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 						(*iter_s)->emplace_back(da);
 						device_port_flow_[*iter];//make empty value,make sure the key exists when using
 						device_data_[*iter];//make empty value
-					}	
+					}
 					else
 					{
 						//	LOG_WARN("add device failed,model:%s, ip:%s, id:%s", da.dca.deviceModel, da.dca.deviceIp, da.dca.deviceId);
