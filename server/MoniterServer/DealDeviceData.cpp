@@ -516,7 +516,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 }
 
 Platform::DealDeviceData::DealDeviceData() :run_(true), device_count_(0),
-snmp_(std::make_shared<Snmp>(Snmp())), moniter_thread_alive_(true) {}
+snmp_(std::make_shared<Snmp>(Snmp())), moniterThread_exception_exit_(false) {}
 
 void Platform::DealDeviceData::init()
 {
@@ -533,7 +533,9 @@ void Platform::DealDeviceData::init()
 
 void Platform::DealDeviceData::freeAllResource()
 {
-	thread_moniter_.join();
+	run_ = false;
+	if (thread_moniter_.joinable())
+		thread_moniter_.join();
 	for (auto iter = load_.begin(); iter != load_.end(); ++iter)
 	{
 		for (auto iter_v = (*iter)->begin(); iter_v != (*iter)->end(); ++iter_v)
@@ -979,7 +981,12 @@ Retry:
 	}
 	catch (const std::exception& e)
 	{
-		moniter_thread_alive_ = false;
+		moniterThread_exception_exit_ = true;
 		MONITERSERVER_ERROR("%s, deviceMonitorThread exit", e.what());
+	}
+	catch (...)
+	{
+		moniterThread_exception_exit_ = true;
+		MONITERSERVER_ERROR("deviceMonitorThread exit with unknown exception!!");
 	}
 }

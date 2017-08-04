@@ -12,7 +12,7 @@ int main()
 		ptr->init();
 		while (true)
 		{
-			if (!ptr->moniter_thread_alive_)
+			if (ptr->moniterThread_exception_exit_)
 				break;
 #if _MSC_VER >=1910
 			std::this_thread::sleep_for(std::chrono::milliseconds(3000));

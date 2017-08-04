@@ -167,7 +167,7 @@ namespace Platform
 		std::unordered_map < std::shared_ptr<std::vector<DeviceAttribute>>, std::shared_ptr<boost::mutex>, load_session::Hash > load_mutex_;
 #endif
 	public:
-		bool moniter_thread_alive_;
+		bool moniterThread_exception_exit_;
 		ConfigMessage cm_;
 	public:
 		explicit DealDeviceData();
