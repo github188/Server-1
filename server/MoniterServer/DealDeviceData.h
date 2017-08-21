@@ -8,24 +8,17 @@
 #include <string>
 #include <stdexcept>
 #include <exception>
-#if _MSC_VER >=1800
 #include <thread>
 #include <any>
 #include <mutex>
-#else
-#include "boost/thread.hpp"
-#include "boost/any.hpp"
-#include "boost/thread/mutex.hpp"
-#endif
 
 class otl_connect;
+namespace WwFoundation { class DbWriter; }
 namespace Platform
 {
-	
 	const int SEND_OID_COUNT = 30;
 	const std::string CONFIGURE_DIR = "type_oid.json";
 	const std::string INI_CONFIGURE_DIR = "MoniterServer.ini";
-
 	//const int LOAD_COUNT =2;
 	//const int MONITOR_RATE = 30000;//ms
 	/*const std::string DEVICE_TABLE = "ITS_DEVICE";
@@ -47,7 +40,10 @@ namespace Platform
 	const std::string DEVICE_DISK_RATE = "disk_use_rate";
 	const std::string DEVICE_SYSTEM_DESCRIPTION = "system_desc";
 	const std::string DEVICE_REMARK = "remark";
-
+	const std::string DEVICE_STATUS = "state";
+	const std::string DEV_STATUS_NORMAL = "asset_status";
+	const std::string DEVICE_WORK_STATUS = "work_status"; //another table(deviceTable)
+	
 	typedef struct configmessage
 	{
 		std::string dbUser_name;
@@ -64,13 +60,8 @@ namespace Platform
 	class DealDeviceData;
 	typedef struct impl
 	{
-		std::shared_ptr<otl_connect> db;
 		std::shared_ptr<DealDeviceData> this_ptr;
-#if _MSC_VER >=1910
 		std::shared_ptr<std::mutex> mutex_ptr;
-#else
-		std::shared_ptr<boost::mutex> mutex_ptr;
-#endif
 	}Impl;
 
 	typedef struct portflow
@@ -85,7 +76,6 @@ namespace Platform
 		std::string deviceModel;
 		std::string deviceIp;
 		std::string deviceId;
-
 		bool operator ==(const devicecompareattribute& da) const
 		{
 			return ((deviceModel == da.deviceModel) && (deviceIp == da.deviceIp) && (deviceId == da.deviceId));
@@ -120,6 +110,7 @@ namespace Platform
 			{
 				return ((size_t)ptr.get()) / sizeof(T);
 			}
+
 		};
 	};
 
@@ -137,11 +128,7 @@ namespace Platform
 	typedef std::unordered_map<std::string, std::unordered_map<std::string, std::string>> ModelOid;
 	typedef std::unordered_map<DeviceCompareAttribute, bool, DeviceCompareAttributeHash> IsOidWhole;
 	typedef std::unordered_map<DeviceCompareAttribute, std::vector<PortFlow>, DeviceCompareAttributeHash> DevicePortFlow;
-#if _MSC_VER >=1800
 	typedef std::unordered_map<DeviceCompareAttribute, std::map<std::string, std::any>, DeviceCompareAttributeHash> DeviceData;
-#else
-	typedef std::unordered_map<DeviceCompareAttribute, std::map<std::string,boost::any>, DeviceCompareAttributeHash> DeviceData;
-#endif
 
 	class Snmp;
 	class DealDeviceData sealed :public std::enable_shared_from_this<DealDeviceData>
@@ -150,22 +137,20 @@ namespace Platform
 		bool run_;
 		int device_count_;
 		std::shared_ptr<Snmp> snmp_;
+		std::thread thread_moniter_;
+		std::thread thread_moniter_online_;
 		std::vector<std::shared_ptr<Impl>> impl_;
+		std::shared_ptr<WwFoundation::DbWriter> db_writer_;
 		std::vector<DeviceCompareAttribute> device_compare_attribute_;
 		std::vector<std::shared_ptr<std::vector<DeviceAttribute>>> load_; //every load has some devices
 		std::unordered_map<std::string, std::unordered_map<std::string, std::string>> model_oid_; //every model has a group of oids
 		std::unordered_map<DeviceCompareAttribute, bool, DeviceCompareAttributeHash> is_oid_whole_;// since a group of oids too big, must split send request. Makesure get all request,or do not deal this missing device data
+		std::unordered_map<DeviceCompareAttribute, int, DeviceCompareAttributeHash> device_online_flag_;// oneline=1, offline=0
 		std::unordered_map<std::shared_ptr<std::vector<DeviceAttribute>>, void*, load_session::Hash> load_session_; //every load has a session which be bound to a system thread
 		std::unordered_map<DeviceCompareAttribute, std::vector<PortFlow>, DeviceCompareAttributeHash> device_port_flow_;//one or several port flow, the data be put into struct PortFlow	
-#if _MSC_VER >=1800
-		std::thread thread_moniter_;
 		std::unordered_map<DeviceCompareAttribute, std::map<std::string,std::any>, DeviceCompareAttributeHash> device_data_;//the data return by snmp request
 		std::unordered_map<std::shared_ptr<std::vector<DeviceAttribute>>, std::shared_ptr<std::mutex>, load_session::Hash > load_mutex_; //every load has a mutex
-#else
-		boost::thread thread_moniter_;
-		std::unordered_map<DeviceCompareAttribute, std::map<std::string,boost::any>, DeviceCompareAttributeHash> device_data_;
-		std::unordered_map < std::shared_ptr<std::vector<DeviceAttribute>>, std::shared_ptr<boost::mutex>, load_session::Hash > load_mutex_;
-#endif
+
 	public:
 		bool moniterThread_exception_exit_;
 		ConfigMessage cm_;
@@ -175,25 +160,29 @@ namespace Platform
 
 		void init();
 		void freeAllResource();
-		std::shared_ptr<Snmp> getSnmp(){ return snmp_; }
-		ModelOid& getModelOid(){ return model_oid_; }
+		std::shared_ptr<Snmp> getSnmp() const{ return snmp_; }
+		ModelOid& getModelOid() { return model_oid_; }
 		DevicePortFlow& getPortflow(){ return device_port_flow_; }
-		std::vector<DeviceCompareAttribute>& getDeviceCompareAttribute(){ return device_compare_attribute_; }
-		DeviceData& getDeviceData(){ return device_data_; }
-		IsOidWhole& getIsOidWhole(){ return is_oid_whole_; }
+		std::vector<DeviceCompareAttribute>& getDeviceCompareAttribute() { return device_compare_attribute_; }
+		DeviceData& getDeviceData() { return device_data_; }
+		IsOidWhole& getIsOidWhole() { return is_oid_whole_; }
+		auto& getDeviceOnlineFlag() { return device_online_flag_; }
+		int getDbWriterThreadAliveCount()const;
+		auto getDbWriterPtr() const { return db_writer_; }
 	private:
-		void getMessageFromIniConfigure(const std::string dir);
-		void getMessageFromConfigure(const std::string dir);
+		void getMessageFromIniConfigure(const std::string& dir);
+		void getMessageFromConfigure(const std::string& dir);
 		void getDeviceIpFromDB(std::vector<DeviceCompareAttribute>& device_compare_attribute, otl_connect& db);
 		bool isDeviceChange(std::vector<DeviceCompareAttribute>& device_compare_attribute,
 			std::vector<DeviceCompareAttribute>& add_device, std::vector<DeviceCompareAttribute>& decrease_device);//device change,return true
-		void setDevcieAndLoadBalancing(std::vector<DeviceCompareAttribute>& add, std::vector<DeviceCompareAttribute>& decrease);
+		void setDevcieAndLoadBalancing(std::vector<DeviceCompareAttribute>& add, const std::vector<DeviceCompareAttribute>& decrease);
 		void makeLoadsession();
 		int setSnmpParameter(void* session, void*& manager_entity, void*& context, void*& vbl,
 			void*& agent_entity, void*& pdu, const DeviceCompareAttribute& dca);
 		void releaseDeviceResource(void* session, void* context, void* vbl,
 			void* manager_entity, void* agent_entity, void* pdu);
-		void deviceMonitorThread() /*noexcept*/;
+		void deviceMonitorThread() noexcept;
+		void deviceOfflineMonitorThread() noexcept;
 	};
 }
 #endif

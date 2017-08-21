@@ -2,7 +2,7 @@
 #include "LogMacros.h"
 #include "crashDump.h"
 int main()
-{
+{	
 	crashDump();
 	std::shared_ptr<Platform::DealDeviceData> ptr(new Platform::DealDeviceData);
 	try
@@ -12,22 +12,18 @@ int main()
 		ptr->init();
 		while (true)
 		{
-			if (ptr->moniterThread_exception_exit_)
+			if (ptr->moniterThread_exception_exit_ || (ptr->getDbWriterThreadAliveCount() == 0))
 				break;
-#if _MSC_VER >=1910
 			std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-#else
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(3000));
-#endif
 		}
 	}
 	catch (const std::exception& e)
 	{
-		MONITERSERVER_ERROR("%s", e.what());
+		MONITERSERVER_ERROR("main:%s", e.what());
 	}
 	catch (...)
 	{
-		MONITERSERVER_ERROR("%s", "unknown exception!!");
+		MONITERSERVER_ERROR("%s", "main: unknown exception!!");
 	}
 	ptr->freeAllResource();
 	return 0;

@@ -14,6 +14,7 @@
 #include "RAII.h"
 #include "LogMacros.h"
 #include "ParseIni.h"
+#include "DbWriter.h"
 
 static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, WPARAM, LPARAM, LPVOID lpClientData)
 {
@@ -35,16 +36,15 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 
 	auto getDeviceData = [&impl, &all_get, &hSession, &dca]()->int
 	{
+		auto db_write = impl->this_ptr->getDbWriterPtr();
 		auto mutex_ptr = impl->mutex_ptr;
 		auto snmp_ptr = impl->this_ptr->getSnmp();
 		const auto& device_compare_attribute = impl->this_ptr->getDeviceCompareAttribute();
 		const auto& model_oid = impl->this_ptr->getModelOid();
 		auto& device_data = impl->this_ptr->getDeviceData();
-#if _MSC_VER >=1800
+		auto& device_online_flag = impl->this_ptr->getDeviceOnlineFlag();
+
 		std::lock_guard<std::mutex> lock(*mutex_ptr);
-#else
-		boost::lock_guard<boost::mutex> lock(*mutex_ptr);
-#endif
 		auto& is_oid_whole = impl->this_ptr->getIsOidWhole();
 		try
 		{
@@ -71,6 +71,16 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					break;
 				}
 			}
+
+			device_online_flag[dca] = 1; //recv message OK ,no matter the data is valid or not, the device is onlie
+			 //for deviceTable,insert online/offline
+			std::ostringstream sql;
+			sql << "update " << impl->this_ptr->cm_.deviceTable_name
+				<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << 1 << "'"
+				<< " where " << Platform::DEVICE_ID << " = " << "'" << dca.deviceId << "'"
+				<< " and " << Platform::DEVICE_IP << " = " << "'" << dca.deviceIp << "'"
+				<< " and " << Platform::DEVICE_MODEL << " = " << "'" << dca.deviceModel << "'";
+			db_write->addSql(std::move(sql.str()));
 
 			void* vblist = nullptr;
 			snmp_ptr->getPduData(recvPdu, vblist);
@@ -129,7 +139,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					case SNMP_SYNTAX_IPADDR:
 					case SNMP_SYNTAX_NSAPADDR:
 					{
-						char desc[500] = { 0 };
+						char desc[1024 * 2] = { 0 };
 						memcpy(desc, value.value.string.ptr, value.value.string.len);
 						std::string str = desc;
 						//std::string str1 = reinterpret_cast<char*>(value.value.string.ptr);
@@ -164,7 +174,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 				if (device_data[dca].size() == oid_group1.size())
 				{
 					all_get = true;
-					is_oid_whole[dca] = false;
+					is_oid_whole[dca] = false; //this time  is done OK ,make false for next time
 				}
 			}
 		}
@@ -181,14 +191,11 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 	};
 	auto writeToDB = [&impl, &dca]()
 	{
-		auto db_ptr = impl->db;
+		auto db_write = impl->this_ptr->getDbWriterPtr();
 		auto &device_port_flow = impl->this_ptr->getPortflow();
 		auto &device_data = impl->this_ptr->getDeviceData();
-#if _MSC_VER >=1800
+
 		auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-#else
-		auto t = boost::chrono::system_clock::to_time_t(boost::chrono::system_clock::now());
-#endif
 		std::ostringstream time;
 		time << (std::localtime(&t)->tm_year + 1900) << "-" << (std::localtime(&t)->tm_mon + 1) << "-" << std::localtime(&t)->tm_mday
 			<< " " << std::localtime(&t)->tm_hour << ":" << std::localtime(&t)->tm_min << ":" << std::localtime(&t)->tm_sec;
@@ -203,11 +210,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		if (iter_sys_desc != device_data[dca].end()) // has system_desc
 		{
 			sql << "," << Platform::DEVICE_SYSTEM_DESCRIPTION;
-#if _MSC_VER >=1800
 			sql_value << "," << "'" << (std::any_cast<std::string>(iter_sys_desc->second)) << "'";
-#else
-			sql_value << "," << "'" << (boost::any_cast<std::string>(iter_sys_desc->second)) << "'";
-#endif	
 			device_data[dca].erase(iter_sys_desc); //remove this element
 		}
 
@@ -215,11 +218,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		if (iter_cpu != device_data[dca].end())//just has single cpu
 		{
 			sql << "," << Platform::DEVICE_CPU_RATE;
-#if _MSC_VER >=1800
 			sql_value << "," << "'" << std::any_cast<uint64_t>(iter_cpu->second) << "'";
-#else
-			sql_value << "," << "'" << boost::any_cast<uint64_t>(iter_cpu->second) << "'";
-#endif	
 			device_data[dca].erase(iter_cpu); //remove this element
 		}
 		else // has several cpus or no cpu
@@ -236,11 +235,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					if (pos != std::string::npos) //find one like cpux(x=1 or 2 or 3.......)
 					{
 						exit_loop = true; //since sotr , once goto else branch,then no cpux exit
-#if _MSC_VER >=1800
 						cpu_rate_all = cpu_rate_all + std::any_cast<uint64_t>(iter->second);
-#else
-						cpu_rate_all = cpu_rate_all + boost::any_cast<uint64_t>(iter->second);
-#endif					
 						++cpu_count;
 						iter = device_data[dca].erase(iter); //remove this element
 					}
@@ -260,21 +255,12 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		auto iter_diskTotal = device_data[dca].find("diskTotal");
 		if (iter_diskTotal != device_data[dca].end()) //just has single disk
 		{
-#if _MSC_VER >=1800
 			auto diskTotal = std::any_cast<uint64_t>(iter_diskTotal->second);
-#else
-			auto diskTotal = boost::any_cast<uint64_t>(iter_diskTotal->second);
-#endif
 			device_data[dca].erase(iter_diskTotal); //remove this element
-
 			auto iter_diskUsed = device_data[dca].find("diskUsed");
 			if (iter_diskUsed != device_data[dca].end())
 			{
-#if _MSC_VER >=1800
 				auto diskUsed = std::any_cast<uint64_t>(iter_diskUsed->second);
-#else
-				auto diskUsed = boost::any_cast<uint64_t>(iter_diskUsed->second);
-#endif
 				auto disk_use_rate = diskUsed * 100 / diskTotal;
 				sql << "," << Platform::DEVICE_DISK_RATE;
 				sql_value << "," << "'" << disk_use_rate << "'";
@@ -301,24 +287,14 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 						exit_loop = true; //since sort , once goto else branch,then no diskTotalx or diskUsedx exit
 						if (pos != std::string::npos)//find one like diskTotalx(x=1 or 2 or 3.......)
 						{
-#if _MSC_VER >=1800
 							diskTotal.emplace_back(std::any_cast<uint64_t>(iter->second));
 							diskTotal_all = diskTotal_all + std::any_cast<uint64_t>(iter->second);
-#else
-							diskTotal.emplace_back(boost::any_cast<uint64_t>(iter->second));
-							diskTotal_all = diskTotal_all + boost::any_cast<uint64_t>(iter->second);
-#endif
 							iter = device_data[dca].erase(iter);
 						}
 						else //find one like diskUsedx(x=1 or 2 or 3.......)
 						{
-#if _MSC_VER >=1800
 							diskUsed.emplace_back(std::any_cast<uint64_t>(iter->second));
 							diskUsed_all = diskUsed_all + std::any_cast<uint64_t>(iter->second);
-#else
-							diskUsed.emplace_back(boost::any_cast<uint64_t>(iter->second));
-							diskUsed_all = diskUsed_all + boost::any_cast<uint64_t>(iter->second);
-#endif					
 							iter = device_data[dca].erase(iter);
 						}
 					}
@@ -338,11 +314,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		auto iter_memory = device_data[dca].find("memory");
 		if (iter_memory != device_data[dca].end()) //do not need calculate,direct get
 		{
-#if _MSC_VER >=1800
 			auto mem_use_rate = std::any_cast<uint64_t>(iter_memory->second);
-#else
-			auto mem_use_rate = boost::any_cast<uint64_t>(iter_memory->second);
-#endif		
 			device_data[dca].erase(iter_memory); //remove this element
 			sql << "," << Platform::DEVICE_MEMORY_RATE;
 			sql_value << "," << "'" << mem_use_rate << "'";
@@ -352,20 +324,12 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			auto iter_memoryTotal = device_data[dca].find("memoryTotal");
 			if (iter_memoryTotal != device_data[dca].end()) //has memory
 			{
-#if _MSC_VER >=1800
 				auto memoryTotal = std::any_cast<uint64_t>(iter_memoryTotal->second);
-#else
-				auto memoryTotal = boost::any_cast<uint64_t>(iter_memoryTotal->second);
-#endif
 				device_data[dca].erase(iter_memoryTotal); //remove this element
 				auto iter_memoryUsed = device_data[dca].find("memoryUsed");
 				if (iter_memoryUsed != device_data[dca].end())
 				{
-#if _MSC_VER >=1800
 					auto memoryUsed = std::any_cast<uint64_t>(iter_memoryUsed->second);
-#else
-					auto memoryUsed = boost::any_cast<uint64_t>(iter_memoryUsed->second);
-#endif
 					auto mem_use_rate = memoryUsed * 100 / memoryTotal;
 					sql << "," << Platform::DEVICE_MEMORY_RATE;
 					sql_value << "," << "'" << mem_use_rate << "'";
@@ -378,11 +342,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		if (iter_temperature != device_data[dca].end())// has temperature
 		{
 			sql << "," << Platform::DEVICE_CPU_TEMPERATURE;
-#if _MSC_VER >=1800
 			sql_value << "," << "'" << (std::any_cast<uint64_t>(iter_temperature->second)) << "'";
-#else
-			sql_value << "," << "'" << (boost::any_cast<uint64_t>(iter_temperature->second)) << "'";
-#endif
 			device_data[dca].erase(iter_temperature); //remove this element
 		}
 
@@ -396,25 +356,20 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			for (int i = 0; i < port_count; ++i, ++iter_net)
 			{
 				auto iter_net_temp = iter_net;
-#if _MSC_VER >=1800
 				port_flow.ifSpeed = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-#else
-				port_flow.ifSpeed = static_cast<int32_t>(boost::any_cast<uint64_t>(iter_net_temp->second));
-#endif		
+				if (port_flow.ifSpeed == 0) //maybe the device reboot,oid has been changed. drop this device data
+				{
+					device_data[dca].clear();
+					return;
+				}
+
 				for (int j = 0; j < port_count; ++j)
 					++iter_net_temp;
-#if _MSC_VER >=1800
 				port_flow.in = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-#else
-				port_flow.in = static_cast<int32_t>(boost::any_cast<uint64_t>(iter_net_temp->second));
-#endif
+
 				for (int p = 0; p < port_count; ++p)
 					++iter_net_temp;
-#if _MSC_VER >=1800
 				port_flow.out = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-#else
-				port_flow.out = static_cast<int32_t>(boost::any_cast<uint64_t>(iter_net_temp->second));
-#endif		
 				this_port_flow.emplace_back(port_flow);
 			}
 			auto iter = device_port_flow.find(dca);
@@ -460,54 +415,38 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		}
 		device_data[dca].clear();
 
+		sql << "," << Platform::DEVICE_STATUS;
+		sql_value << "," << "'" << 1 << "'"; //the device is online
 		sql << ")";
 		sql_value << ")";
 		sql << sql_value.str();
+		db_write->addSql(std::move(sql.str()));
+
 		//end = std::chrono::system_clock::now();
 		//int elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>
 		//	(end - start).count();
-		bool need_rlogon = false;
-	Retry:
-		try
-		{
-			if (need_rlogon)
-			{
-				std::ostringstream message;
-				message << impl->this_ptr->cm_.dbUser_name << "/" << impl->this_ptr->cm_.db_password << "@" <<
-					impl->this_ptr->cm_.db_ip << ":" << impl->this_ptr->cm_.db_port << "/" << impl->this_ptr->cm_.db_name;
-				db_ptr->rlogon(message.str().c_str());
-			}
-
-			otl_nocommit_stream o1(1, sql.str().c_str(), *db_ptr);
-			db_ptr->commit();
-			o1.close(true);
-			need_rlogon = false;
-		}
-		catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
-		{
-			MONITERSERVER_ERROR("%s", p.msg);// error message
-			MONITERSERVER_ERROR("%s", p.stm_text);// SQL that caused the error
-			MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
-			if (db_ptr->connected == 1)
-				db_ptr->logoff();
-#if _MSC_VER >=1800
-			std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-#else
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(3000));
-#endif
-			need_rlogon = true;
-			goto Retry;
-		}
 	};
 
-	auto ret = getDeviceData();
-	if (ret != 0) // get device date failed
-		return (SNMPAPI_STATUS)-1;
-	if (all_get)
+	try
 	{
-		all_get = false;
-		writeToDB();
+		auto ret = getDeviceData();
+		if (ret != 0) // get device date failed
+			return (SNMPAPI_STATUS)-1;
+		if (all_get)
+		{
+			all_get = false;
+			writeToDB();
+		}
 	}
+	catch (const std::exception& e)
+	{
+		MONITERSERVER_ERROR("%s in snmpCallBack", e.what());
+	}
+	catch (...)
+	{
+		MONITERSERVER_ERROR("unknown exception in snmpCallBack");
+	}
+	
 	/*auto end1 = std::chrono::system_clock::now();
 		int elapsed_seconds1 = std::chrono::duration_cast<std::chrono::milliseconds>
 			(end1 - start).count();
@@ -516,19 +455,23 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 }
 
 Platform::DealDeviceData::DealDeviceData() :run_(true), device_count_(0),
-snmp_(std::make_shared<Snmp>(Snmp())), moniterThread_exception_exit_(false) {}
+snmp_(std::make_shared<Snmp>(Snmp())),
+moniterThread_exception_exit_(false)
+{}
 
 void Platform::DealDeviceData::init()
 {
 	getMessageFromIniConfigure(INI_CONFIGURE_DIR);
+	std::ostringstream message;
+	message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
+		cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
+
+	db_writer_ = std::make_shared<WwFoundation::DbWriter>(1, 10, 2000000, message.str()); //max_sql_count:2000000 nearly 1G ,if each sql 512Byte
 	load_.resize(cm_.load_count);
 	snmp_->init();
 	makeLoadsession();
-#if _MSC_VER >=1800
 	thread_moniter_ = std::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
-#else
-	thread_moniter_ = boost::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
-#endif
+	thread_moniter_online_ = std::thread(std::bind(&DealDeviceData::deviceOfflineMonitorThread, this));
 }
 
 void Platform::DealDeviceData::freeAllResource()
@@ -546,7 +489,12 @@ void Platform::DealDeviceData::freeAllResource()
 	}
 }
 
-void Platform::DealDeviceData::getMessageFromIniConfigure(const std::string dir)
+int Platform::DealDeviceData::getDbWriterThreadAliveCount() const
+{
+	return db_writer_->getThreadAliveCount();
+}
+
+void Platform::DealDeviceData::getMessageFromIniConfigure(const std::string& dir)
 {
 	WwFoundation::ParseIni parser(dir);
 	parser.parse();
@@ -559,9 +507,10 @@ void Platform::DealDeviceData::getMessageFromIniConfigure(const std::string dir)
 	cm_.deviceTable_name = parser.getValue("DbConfig", "DeviceTableName");
 	cm_.load_count = std::atoi(parser.getValue("ComConfig", "LoadCount").c_str());
 	cm_.moniter_rate = std::atoi(parser.getValue("ComConfig", "MoniterRate").c_str());
+	cm_.moniter_rate = cm_.moniter_rate >= 30000 ? cm_.moniter_rate : 30000; //snmp delay is nearly 30s
 }
 
-void Platform::DealDeviceData::getMessageFromConfigure(const std::string dir)
+void Platform::DealDeviceData::getMessageFromConfigure(const std::string& dir)
 {
 	std::ifstream ifs;
 	ifs.open(dir);
@@ -608,7 +557,7 @@ void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttrib
 	auto size = device_model_name.size();
 	for (auto i = 0; i < static_cast<int>(size - 1); ++i)
 		message << device_model_name.at(i) << "','";
-	message << device_model_name.at(size - 1) << "')";
+	message << device_model_name.at(size - 1) << "')" << " and " << DEV_STATUS_NORMAL << " = '101'";
 	auto sql = message.str();
 
 	otl_stream o(size, sql.c_str(), db);//otl_stream just for select, else use otl_nocommit_stream, since select do not need to commit
@@ -654,7 +603,7 @@ bool Platform::DealDeviceData::isDeviceChange(std::vector<DeviceCompareAttribute
 	}
 }
 
-void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompareAttribute>& add, std::vector<DeviceCompareAttribute>& decrease)
+void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompareAttribute>& add, const std::vector<DeviceCompareAttribute>& decrease)
 {
 	if (!add.empty())
 	{
@@ -685,6 +634,7 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 						(*iter_s)->emplace_back(da);
 						device_port_flow_[*iter];//make empty value,make sure the key exists when using
 						device_data_[*iter];//make empty value
+						device_online_flag_[*iter];
 					}
 					else
 					{
@@ -720,9 +670,8 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 			auto iter_s = load_.begin();
 			for (auto iter = add.begin(); iter != add.end(); ++iter)
 			{
-				DeviceAttribute da;
-				memset(&da, 0, sizeof(DeviceAttribute));
-				da.dca = *iter;
+				DeviceAttribute da;		
+				da.dca = (*iter);
 				da.session = load_session_[*iter_s];
 				auto ret = setSnmpParameter(da.session, da.manager_entity, da.context, da.vbl,
 					da.agent_entity, da.pdu, *iter);
@@ -732,6 +681,7 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 					++iter_s;
 					device_port_flow_[da.dca];//make empty value,make sure the key exists when using
 					device_data_[da.dca];//make empty value
+					device_online_flag_[da.dca];
 				}
 				else
 				{
@@ -756,9 +706,10 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 						is_find = true;
 						releaseDeviceResource(nullptr, (*iter).context, (*iter).vbl, //release resource
 							(*iter).manager_entity, (*iter).agent_entity, (*iter).pdu);
-						device_port_flow_.erase((*iter).dca);
-						device_data_.erase((*iter).dca);
-						is_oid_whole_.erase(iter->dca);
+						device_port_flow_.erase((*iter).dca);// note: if the device_port_flow_ has been read at the same time in the function(snmpCallBack,another thread),this will make undefined behavior. But it will not happen under the large moniter_rate
+						device_data_.erase((*iter).dca); //as same as above
+						is_oid_whole_.erase(iter->dca);// as same as above
+						device_online_flag_.erase(iter->dca); // be read in deviceOfflineMonitorThread,also as same as above
 						(*iter_s)->erase(iter);//delete the decrease device
 						break;
 					}
@@ -782,46 +733,17 @@ void Platform::DealDeviceData::makeLoadsession()
 	for (int i = 0; i < cm_.load_count; ++i)
 	{
 		auto impl = std::make_shared<Impl>(Impl());
-		impl->db = std::shared_ptr<otl_connect>(new otl_connect);
 		impl->this_ptr = shared_this;
-#if _MSC_VER >=1800
 		auto mutex_ptr = std::shared_ptr<std::mutex>(new std::mutex);
-#else
-		auto mutex_ptr = std::shared_ptr<boost::mutex>(new boost::mutex);
-#endif
 		impl->mutex_ptr = mutex_ptr;
 		void* session;
 		snmp_->makeSession(snmpCallBack, impl.get(), session);
-
+	
 		auto ptr = std::make_shared<std::vector<DeviceAttribute>>(std::vector<DeviceAttribute>());
 		load_[i] = ptr;
 		load_session_.emplace(std::make_pair(ptr, session));
 		load_mutex_.emplace(std::make_pair(ptr, mutex_ptr));
 		impl_.emplace_back(impl);
-
-		//connect to db for each load_session
-		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
-
-	Retry:
-		try
-		{
-			impl->db->rlogon(message.str().c_str());
-		}
-		catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
-		{
-			MONITERSERVER_ERROR("%s", p.msg);//error message
-			MONITERSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
-			MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
-
-			if (impl->db->connected == 1)
-				impl->db->logoff();
-#if _MSC_VER >=1800
-			std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-#else
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(3000));
-#endif
-			goto Retry;
-		}
 	}
 }
 
@@ -830,14 +752,28 @@ int Platform::DealDeviceData::setSnmpParameter(void * session, void *& manager_e
 	try
 	{
 		snmp_->makeManagerEntity(session, manager_entity);
+		WwFoundation::RAII makeManagerEntity_raii([manager_entity, this]() {snmp_->releaseEntity(manager_entity); });
+
 		snmp_->makeContext("public", session, context);
+		WwFoundation::RAII makeContext_raii([context, this]() {snmp_->releaseContext(context); });
+
 		snmp_->makeAgentEntity(session, dca.deviceIp, agent_entity);
+		WwFoundation::RAII makeAgentEntity_raii([agent_entity, this]() {snmp_->releaseEntity(agent_entity); });
+
 		snmp_->makeVbl(session, vbl);
+		WwFoundation::RAII makeVbl_raii([vbl, this]() {snmp_->releaseVbl(vbl); });
+
 		snmp_->makePdu(session, vbl, pdu);
+		WwFoundation::RAII makePdu_raii([pdu, this]() {snmp_->releasePdu(pdu); });
+
+		makeManagerEntity_raii.Dismiss();
+		makeContext_raii.Dismiss();
+		makeAgentEntity_raii.Dismiss();
+		makeVbl_raii.Dismiss();
+		makePdu_raii.Dismiss();
 	}
 	catch (const std::exception& e)
 	{
-		releaseDeviceResource(nullptr, context, vbl, manager_entity, agent_entity, pdu);
 		MONITERSERVER_WARN("%s , releaseDeviceResource failed, device id is %s", e.what(), dca.deviceId.c_str());
 		return -1;
 	}
@@ -860,7 +796,7 @@ void Platform::DealDeviceData::releaseDeviceResource(void * session, void * cont
 		snmp_->releasePdu(pdu);
 }
 
-void Platform::DealDeviceData::deviceMonitorThread()
+void Platform::DealDeviceData::deviceMonitorThread() noexcept
 {
 	otl_connect db;
 	otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
@@ -885,11 +821,8 @@ Retry:
 			for (auto iter_s = load_.begin(); iter_s != load_.end(); ++iter_s)
 			{
 				auto iter_mutex = load_mutex_.find(*iter_s);
-#if _MSC_VER >=1800
 				std::lock_guard<std::mutex> lock(*(iter_mutex->second));
-#else
-				boost::lock_guard<boost::mutex> lock(*(iter_mutex->second));
-#endif				
+
 				for (auto iter = (*iter_s)->begin(); iter != (*iter_s)->end(); ++iter)
 				{
 					auto oid = model_oid_[(*iter).dca.deviceModel];
@@ -957,11 +890,7 @@ Retry:
 			device_compare_attribute_temp.clear();
 			add_device_temp.clear();
 			decrease_device_temp.clear();
-#if _MSC_VER >=1800
 			std::this_thread::sleep_for(std::chrono::milliseconds(cm_.moniter_rate));
-#else
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(cm_.moniter_rate));
-#endif
 		}
 	}
 	catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
@@ -972,11 +901,7 @@ Retry:
 
 		if (db.connected == 1)
 			db.logoff();
-#if _MSC_VER >=1800
-		std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-#else
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(3000));
-#endif
+		std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
 		goto Retry;
 	}
 	catch (const std::exception& e)
@@ -989,4 +914,57 @@ Retry:
 		moniterThread_exception_exit_ = true;
 		MONITERSERVER_ERROR("deviceMonitorThread exit with unknown exception!!");
 	}
+}
+
+void Platform::DealDeviceData::deviceOfflineMonitorThread() noexcept
+{
+	try
+	{
+		while (run_)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(cm_.moniter_rate / 2));
+			for (auto& device_online_flag_pair : device_online_flag_)
+			{
+				if (device_online_flag_pair.second == 0)// the device maybe offline
+				{
+					auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+					std::ostringstream time;
+					time << (std::localtime(&t)->tm_year + 1900) << "-" << (std::localtime(&t)->tm_mon + 1) << "-" << std::localtime(&t)->tm_mday
+						<< " " << std::localtime(&t)->tm_hour << ":" << std::localtime(&t)->tm_min << ":" << std::localtime(&t)->tm_sec;
+
+					std::ostringstream sql;
+					sql << "insert into " << cm_.deviceDataTable_name << "(" << Platform::DEVICE_ID
+						<< "," << Platform::DEVICE_UPLOAD_TIME << "," << Platform::DEVICE_STATUS << ")"
+						<< " values (" << "'" << device_online_flag_pair.first.deviceId << "'" << ","
+						<< "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')" << ","
+						<< '0' << ")";
+					db_writer_->addSql(std::move(sql.str()));
+
+					//for deviceTable,insert online/offline
+					sql.clear();
+					sql.str("");
+					sql << "update " << cm_.deviceTable_name
+						<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << 0 << "'"
+						<< " where " << Platform::DEVICE_ID << " = " << "'" << device_online_flag_pair.first.deviceId << "'"
+						<< " and " << Platform::DEVICE_IP << " = " << "'" << device_online_flag_pair.first.deviceIp << "'"
+						<< " and " << Platform::DEVICE_MODEL << " = " << "'" << device_online_flag_pair.first.deviceModel << "'";
+					db_writer_->addSql(std::move(sql.str()));
+				}
+				device_online_flag_pair.second = 0;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(cm_.moniter_rate / 2));
+		}
+	}
+	catch (const std::exception& e)
+	{
+		MONITERSERVER_ERROR("%s, deviceOfflineMonitorThread exit", e.what());
+	}
+	catch (...)
+	{
+		MONITERSERVER_ERROR("deviceOfflineMonitorThread exit with unknown exception!!");
+	}
+
+
+	
 }

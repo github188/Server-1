@@ -163,6 +163,7 @@
     <ClCompile Include="DealDeviceData.cpp" />
     <ClCompile Include="ParseIni.cpp" />
     <ClCompile Include="snmp.cpp" />
+    <ClCompile Include="DbWriter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crashDump.h" />
@@ -171,6 +172,8 @@
     <ClInclude Include="ParseIni.h" />
     <ClInclude Include="RAII.h" />
     <ClInclude Include="snmp.h" />
+    <ClInclude Include="SyncQueue.h" />
+    <ClInclude Include="DbWriter.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\shared\log\log.vcxproj">

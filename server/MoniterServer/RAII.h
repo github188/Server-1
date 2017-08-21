@@ -9,22 +9,22 @@ namespace WwFoundation
 		ExitClean onExitScope_;
 		bool dismissed_;
 	public:
-		explicit RAII(const ExitClean& onExitScope = []() {}) /*noexcept*/
+		explicit RAII(const ExitClean& onExitScope = []() {}) noexcept
 			: onExitScope_(onExitScope), dismissed_(false) { }
 
-		~RAII() /*noexcept*/
+		~RAII() noexcept
 		{
 			if (!dismissed_)
 				onExitScope_();
 		}
 
-		RAII(RAII&& raii)/* noexcept */
+		RAII(RAII&& raii) noexcept 
 			:onExitScope_(raii.onExitScope_), dismissed_(raii.dismissed_)
 		{
 			raii.dismissed_ = true;
 		}
 
-		RAII& operator=(RAII&& raii) /*noexcept*/
+		RAII& operator=(RAII&& raii) noexcept
 		{
 			onExitScope_ = raii.onExitScope_;
 			dismissed_ = raii.dismissed_;
@@ -33,13 +33,13 @@ namespace WwFoundation
 			return *this;
 		}
 
-		void Dismiss() /*noexcept*/
+		void Dismiss() noexcept
 		{
 			dismissed_ = true;
 		}
 	private:
-		RAII(RAII const&) /*= delete*/;
-		RAII& operator=(const RAII&)/* = delete*/;
+		RAII(RAII const&) = delete;
+		RAII& operator=(const RAII&) = delete;
 	};
 }
 	
