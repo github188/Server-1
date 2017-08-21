@@ -1,6 +1,6 @@
 #include <memory>
 #include <thread>
-#include "../../MoniterServer/snmp.h"
+#include "../../server/MoniterServer/snmp.h"
 int main()
 {
 	auto snmp_ptr = std::make_shared<Platform::Snmp>(Platform::Snmp());

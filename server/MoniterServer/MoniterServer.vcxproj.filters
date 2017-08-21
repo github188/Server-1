@@ -19,6 +19,9 @@
     <Filter Include="ParseIni">
       <UniqueIdentifier>{e1fa7e0a-2a99-4687-bfb9-ed65cade81cc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DbWriter">
+      <UniqueIdentifier>{5fd158b7-71a8-4abb-ba61-97c92b6f24fd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">
@@ -32,6 +35,9 @@
     </ClCompile>
     <ClCompile Include="ParseIni.cpp">
       <Filter>ParseIni</Filter>
+    </ClCompile>
+    <ClCompile Include="DbWriter.cpp">
+      <Filter>DbWriter</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -52,6 +58,12 @@
     </ClInclude>
     <ClInclude Include="crashDump.h">
       <Filter>log</Filter>
+    </ClInclude>
+    <ClInclude Include="SyncQueue.h">
+      <Filter>DbWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="DbWriter.h">
+      <Filter>DbWriter</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
