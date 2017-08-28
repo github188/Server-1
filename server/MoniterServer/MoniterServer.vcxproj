@@ -179,8 +179,8 @@
     <ProjectReference Include="..\..\shared\log\log.vcxproj">
       <Project>{a724a625-56a6-4674-9af7-d315d928eebd}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\ThirdParty\jsoncpp\makefiles\vs71\lib_json.vcxproj">
-      <Project>{b84f7231-16ce-41d8-8c08-7b523ff4225b}</Project>
+    <ProjectReference Include="..\..\ThirdParty\jsoncpp\makefiles\msvc2010\lib_json.vcxproj">
+      <Project>{1e6c2c1c-6453-4129-ae3f-0ee8e6599c89}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\ThirdParty\otl\otl.vcxproj">
       <Project>{2c40327a-d51c-4fd4-aa4c-cfab5a3c8159}</Project>
