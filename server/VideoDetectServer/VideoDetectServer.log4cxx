@@ -1,0 +1,13 @@
+log4j.rootLogger=INFO, default
+
+#rolling log files
+log4j.appender.default=org.apache.log4j.RollingFileAppender
+log4j.appender.default.File=./log/VideoDetectServer.log
+log4j.appender.default.DatePattern='.'yyyy-MM-dd
+log4j.appender.default.MaxFileSize=25MB
+log4j.appender.default.MaxBackupIndex=10
+log4j.appender.default.Append=true
+log4j.appender.default.Threshold=INFO
+log4j.appender.default.layout=org.apache.log4j.PatternLayout
+log4j.appender.default.layout.ConversionPattern=%d [%t] %-5p %.16c - %m%n
+log4j.additivity.default=false

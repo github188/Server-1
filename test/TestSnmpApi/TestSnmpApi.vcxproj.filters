@@ -10,15 +10,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\MoniterServer\snmp.cpp">
-      <Filter>Snmp</Filter>
-    </ClCompile>
     <ClCompile Include="App.cpp">
       <Filter>App</Filter>
     </ClCompile>
+    <ClCompile Include="snmp.cpp">
+      <Filter>Snmp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\MoniterServer\snmp.h">
+    <ClInclude Include="snmp.h">
       <Filter>Snmp</Filter>
     </ClInclude>
   </ItemGroup>

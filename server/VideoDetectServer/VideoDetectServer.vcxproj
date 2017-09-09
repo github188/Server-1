@@ -87,25 +87,28 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../../shared/log;../../ThirdParty/otl/otl/;../../ThirdParty/otl/oracle/include;../../ThirdParty/KeDaSDK/include;../../ThirdParty/JieMaiSDK/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../../shared/log;../../ThirdParty/otl/otl/;../../ThirdParty/otl/oracle/include;../../ThirdParty/KeDaSDK/include;../../ThirdParty/JieMaiSDK/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../../shared/log;../../ThirdParty/otl/otl/;../../ThirdParty/otl/oracle/include;../../ThirdParty/KeDaSDK/include;../../ThirdParty/JieMaiSDK/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -114,11 +117,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../../shared/log;../../ThirdParty/otl/otl/;../../ThirdParty/otl/oracle/include;../../ThirdParty/KeDaSDK/include;../../ThirdParty/JieMaiSDK/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -126,6 +130,39 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CameraManager.h" />
+    <ClInclude Include="crashDump.h" />
+    <ClInclude Include="DbWriter.h" />
+    <ClInclude Include="JieMai.h" />
+    <ClInclude Include="KeDa.h" />
+    <ClInclude Include="LogMacros.h" />
+    <ClInclude Include="ParseIni.h" />
+    <ClInclude Include="SyncQueue.h" />
+    <ClInclude Include="TaskQueue.h" />
+    <ClInclude Include="ThreadPool.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.cpp" />
+    <ClCompile Include="CameraManager.cpp" />
+    <ClCompile Include="DbWriter.cpp" />
+    <ClCompile Include="JieMai.cpp" />
+    <ClCompile Include="KeDa.cpp" />
+    <ClCompile Include="ParseIni.cpp" />
+    <ClCompile Include="ThreadPool.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\log\log.vcxproj">
+      <Project>{a724a625-56a6-4674-9af7-d315d928eebd}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ThirdParty\JieMaiSDK\JieMaiSDK.vcxproj">
+      <Project>{b9e23106-0658-44cd-9edc-f7e49cb647a3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ThirdParty\KeDaSDK\KeDaSDK.vcxproj">
+      <Project>{02c9ce67-caf7-43ea-888e-bcc09bdbae84}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ThirdParty\otl\otl.vcxproj">
+      <Project>{2c40327a-d51c-4fd4-aa4c-cfab5a3c8159}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

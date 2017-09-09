@@ -96,7 +96,7 @@ int main()
 	snmp_ptr->makeManagerEntity(session, manager_entity);
 
 	void* agent_entity = nullptr;
-	snmp_ptr->makeAgentEntity(session, "192.168.1.156", agent_entity);
+	snmp_ptr->makeAgentEntity(session, "192.168.1.186", agent_entity);
 
 	void* vbl = nullptr;
 	snmp_ptr->makeVbl(session, vbl);
@@ -116,7 +116,7 @@ int main()
 		//printf("%d\n", vbl_count);
 		snmp_ptr->sendRequestMessage(session, manager_entity, agent_entity, context, pdu);
 		snmp_ptr->deleteVb(vbl, 1);
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 	}
 	return 0;
 }

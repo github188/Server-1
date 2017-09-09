@@ -1,17 +1,87 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
+    <Filter Include="App">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
-    <Filter Include="资源文件">
+    <Filter Include="ThreadPool">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Log">
+      <UniqueIdentifier>{7823a506-0fc5-4626-a1bd-a14595909d9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DbWriter">
+      <UniqueIdentifier>{0a418528-3028-498f-9ff4-1aa072a7c7e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="KeDa">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="CameraManager">
+      <UniqueIdentifier>{f69884c9-62c1-4a25-8680-83b61e4da2af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParseIni">
+      <UniqueIdentifier>{cdb5cad9-9d3a-4757-b68a-3cb67ebac100}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JieMai">
+      <UniqueIdentifier>{ca100a4c-f499-418c-a70c-1d2d42ab1bc0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TaskQueue.h">
+      <Filter>ThreadPool</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadPool.h">
+      <Filter>ThreadPool</Filter>
+    </ClInclude>
+    <ClInclude Include="crashDump.h">
+      <Filter>Log</Filter>
+    </ClInclude>
+    <ClInclude Include="LogMacros.h">
+      <Filter>Log</Filter>
+    </ClInclude>
+    <ClInclude Include="DbWriter.h">
+      <Filter>DbWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="SyncQueue.h">
+      <Filter>DbWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraManager.h">
+      <Filter>CameraManager</Filter>
+    </ClInclude>
+    <ClInclude Include="ParseIni.h">
+      <Filter>ParseIni</Filter>
+    </ClInclude>
+    <ClInclude Include="KeDa.h">
+      <Filter>KeDa</Filter>
+    </ClInclude>
+    <ClInclude Include="JieMai.h">
+      <Filter>JieMai</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ThreadPool.cpp">
+      <Filter>ThreadPool</Filter>
+    </ClCompile>
+    <ClCompile Include="DbWriter.cpp">
+      <Filter>DbWriter</Filter>
+    </ClCompile>
+    <ClCompile Include="ParseIni.cpp">
+      <Filter>ParseIni</Filter>
+    </ClCompile>
+    <ClCompile Include="App.cpp">
+      <Filter>App</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraManager.cpp">
+      <Filter>CameraManager</Filter>
+    </ClCompile>
+    <ClCompile Include="KeDa.cpp">
+      <Filter>KeDa</Filter>
+    </ClCompile>
+    <ClCompile Include="JieMai.cpp">
+      <Filter>JieMai</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
