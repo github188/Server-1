@@ -15,7 +15,7 @@ namespace ITS
 
 	const std::string KEDA = "1";
 	const std::string JIEMAI = "2";
-	const std::string VIDEO_DETECT = "52";
+	const std::string VIDEO_DETECT = "58";
 	const std::string DEVICE_STATUS_OK = "101";
 
 	const std::string ITS_DEVICE_TYPE = "type";  //because  DEVICE_TYPE is defined in the fucking win
@@ -31,6 +31,7 @@ namespace ITS
 	const std::string CAMERA_LANE_NUMBER = "lane_number";
 	const std::string CAMERA_CAR_FLOW = "car_flow";
 	const std::string CAMERA_UPLOAD_TIME = "upload_time";
+	const std::string CAMERA_RAW_LANE_NUMBER = "raw_lane_number";
 
 	const int GET_CAMERA_ATTRIBUTE_RATE = 60000;//ms
 	const int CONNECT_RATE = 30000;//ms

@@ -54,7 +54,7 @@ void ITS::CameraManager::getCameraAttributeFromDB(std::vector<CameraAttribute>& 
 		<< " from " << cm_.deviceTable_name << " where " << ITS_DEVICE_TYPE << " = " << VIDEO_DETECT
 		<< " and " << DEVICE_STATUS_NORMAL << " = " << DEVICE_STATUS_OK;
 
-	otl_stream o(1, sql.str().c_str(), db);//otl_stream just for select, else use otl_nocommit_stream, since select do not need to commit
+	otl_stream o(50, sql.str().c_str(), db);//otl_stream just for select, else use otl_nocommit_stream, since select do not need to commit
 	std::string device_id, device_ip, device_sub_type, device_lane_number = "";
 	int device_port = 0;
 	while (!o.eof())
@@ -224,6 +224,8 @@ void ITS::CameraManager::dealCameraThread() noexcept
 						break;
 					}
 				}
+				if (kdcip.ip == "" && kdcip.port == 0) //find nothing,means the connection(EV_PEER_DISCONNECT_NTY) is closed normally
+					return;
 
 				switch (ptMsg->wMsgType)
 				{
@@ -237,10 +239,25 @@ void ITS::CameraManager::dealCameraThread() noexcept
 					CameraIpPort cip("", 0);
 					cip.ip = kdcip.ip;
 					cip.port = kdcip.port;
+
+					std::string camera_number;
+					std::vector<std::string> lane_number;
 					std::unique_lock<std::mutex> locker_id(number_mtx_);
-					std::string camera_number = camera_number_[cip];
-					auto lane_number = camera_lane_number_[cip];
+					// executing in this thread ,and executing in notifyCameraChangedThread at the same time.
+					//Remove camera then delete the content in camera_number_(camera_lane_number_) about this camera before get its content in this thread, the result is getting nothing					
+					auto iter = camera_number_.find(cip);
+					if (iter == camera_number_.end())
+						return;
+					else
+						camera_number = iter->second;
+					auto iter1 = camera_lane_number_.find(cip);
+					if (iter1 == camera_lane_number_.end())
+						return;
+					else
+						lane_number = iter1->second;
 					locker_id.unlock();
+
+					auto lane_number_size = lane_number.size();
 					auto vfsin = reinterpret_cast<TIPC_VehFlowStatInfoNty*>(ptMsg->szMsgBody);
 					auto time = ptMsg->achTime;
 					if (vfsin->dwLaneId == 0) //all lane has data
@@ -282,20 +299,17 @@ void ITS::CameraManager::dealCameraThread() noexcept
 					{
 						std::ostringstream sql;
 						sql << "insert into " << cm_.videoDetectDataTable_name << "("
-							<< CAMERA_NUMBER << "," << CAMERA_CAR_FLOW << "," <<
-							CAMERA_UPLOAD_TIME << "," << CAMERA_LANE_NUMBER << ")"
+							<< CAMERA_NUMBER << "," << CAMERA_RAW_LANE_NUMBER << "," <<
+							CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << "," <<
+							CAMERA_LANE_NUMBER << ")"
 							<< " values (" << "'" << camera_number << "'"
+							<< "," << "'" << vfsin->dwLaneId << "'"
 							<< "," << "'" << vfsin->atFlowStat[vfsin->dwLaneId].dwStatCnts << "'"
 							<< "," << "to_date('" << time << "','YYYY-MM-DD HH24:MI:SS')";
-
-						if (vfsin->dwLaneId <= static_cast<int>(lane_number.size()))
+						if (vfsin->dwLaneId <= static_cast<int>(lane_number_size))
 							sql << "," << "'" << lane_number[vfsin->dwLaneId - 1] << "'" << ")";
 						else
-						{
-							sql << "," << "'" << vfsin->dwLaneId << "'" << ")";
-							VIDEODETECTSERVER_WARN("the camera(%s:%d) has %d lanes,actual lanes which get from db is %d"
-								, cip.ip.c_str(), cip.port, ROAD_NUM_MAX - 1, lane_number.size());
-						}
+							sql << "," << "'" << "" << "'" << ")";
 						dbWriter_ptr->addSql(sql.str());
 					}
 				}
@@ -307,13 +321,13 @@ void ITS::CameraManager::dealCameraThread() noexcept
 				case EV_PEER_DISCONNECT_NTY:
 				{
 					printf("EV_PEER_DISCONNECT_NTY\n");
-					VIDEODETECTSERVER_INFO("disconnect with camera(%s:%d)", kdcip.ip.c_str(), kdcip.port);
 					std::unique_lock<std::mutex> locker(KeDa_sharedPtr->mtx_);
 					auto need_connect = KeDa_sharedPtr->keda_camera_need_connect_[kdcip];
 					locker.unlock();
 
 					if (need_connect)
 					{
+						VIDEODETECTSERVER_WARN("disconnect with camera(%s:%d)", kdcip.ip.c_str(), kdcip.port);
 						KeDa_sharedPtr->disconnect(ptMsg->dwHandle);
 						threadPool_ptr->addTask([KeDa_sharedPtr, kdcip, shared_this, this]()->int
 						{
@@ -363,11 +377,24 @@ void ITS::CameraManager::dealCameraThread() noexcept
 					cip.ip = ip_port_ptr->ip;
 					cip.port = ip_port_ptr->port;
 
+					std::string camera_number;
+					std::vector<std::string> lane_number;
 					std::unique_lock<std::mutex> locker_id(number_mtx_);
-					std::string camera_number = camera_number_[cip];
-					auto lane_number = camera_lane_number_[cip];
+					// executing in this thread ,and executing in notifyCameraChangedThread at the same time.
+					//Remove camera then delete the content in camera_number_(camera_lane_number_) about this camera before get its content in this thread, the result is getting nothing					
+					auto iter = camera_number_.find(cip);
+					if (iter == camera_number_.end())
+						return;
+					else
+						camera_number = iter->second;
+					auto iter1 = camera_lane_number_.find(cip);
+					if (iter1 == camera_lane_number_.end())
+						return;
+					else
+						lane_number = iter1->second;
 					locker_id.unlock();
 
+					auto lane_number_size = lane_number.size();
 					auto AlarmIn = reinterpret_cast<NET_DEV_VEHICLE_FLOW_ALARM*>(pAlarmInfo);
 					auto time = static_cast<time_t>(AlarmIn->s_StatisticalTime);
 					auto t = std::localtime(&time);
@@ -376,36 +403,23 @@ void ITS::CameraManager::dealCameraThread() noexcept
 						<< " " << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec;
 					auto time_str = temp.str();
 
-					for (int i = 0; i < static_cast<int>(lane_number.size()); ++i)
+					for (int i = 0; i < AlarmIn->s_ValidLaneNum; ++i)
 					{
 						temp.clear();
 						temp.str("");
 						temp << "insert into " << cm_.videoDetectDataTable_name << "("
-							<< CAMERA_NUMBER << "," << CAMERA_LANE_NUMBER << "," <<
-							CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << ")"
+							<< CAMERA_NUMBER << "," << CAMERA_RAW_LANE_NUMBER << "," <<
+							CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << "," <<
+							CAMERA_LANE_NUMBER << ")"
 							<< " values (" << "'" << camera_number << "'"
-							<< "," << "'" << lane_number[i] << "'"
+							<< "," << "'" << i + 1 << "'"
 							<< "," << "'" << AlarmIn->s_FlowStatInfo[i].s_VehicleTotalCount << "'"
-							<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')" << ")";
+							<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')";
+						if ((i + 1) <= static_cast<int>(lane_number_size))
+							temp << "," << "'" << lane_number[i + 1 - 1] << "'" << ")";
+						else
+							temp << "," << "'" << "" << "'" << ")";
 						dbWriter_ptr->addSql(temp.str());
-						temp.clear();
-						temp.str("");
-					}
-					if (static_cast<int>(lane_number.size()) < AlarmIn->s_ValidLaneNum)
-					{
-						for (int i = static_cast<int>(lane_number.size()); i < AlarmIn->s_ValidLaneNum; ++i)
-						{
-							temp << "insert into " << cm_.videoDetectDataTable_name << "("
-								<< CAMERA_NUMBER << "," << CAMERA_LANE_NUMBER << "," <<
-								CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << ")"
-								<< " values (" << "'" << camera_number << "'"
-								<< "," << "'" << lane_number[i] << "'"
-								<< "," << "'" << AlarmIn->s_FlowStatInfo[i].s_VehicleTotalCount << "'"
-								<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')" << ")";
-							dbWriter_ptr->addSql(temp.str());
-							temp.clear();
-							temp.str("");
-						}
 					}
 				}
 			}
@@ -436,7 +450,7 @@ void ITS::CameraManager::dealCameraThread() noexcept
 							break;
 						}
 					}
-					VIDEODETECTSERVER_INFO("disconnect with camera(%s:%d)", jmcip.ip.c_str(), jmcip.port);
+					VIDEODETECTSERVER_WARN("disconnect with camera(%s:%d)", jmcip.ip.c_str(), jmcip.port);
 					std::unique_lock<std::mutex> locker(JieMai_sharedPtr->mtx_);
 					auto need_connect = JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip];
 					locker.unlock();
@@ -503,7 +517,7 @@ void ITS::CameraManager::dealCameraThread() noexcept
 							KeDa_sharedPtr->keda_camera_need_connect_[kdcip] = true;
 							KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = 0;
 							locker1.unlock();
-
+							VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
 							threadPool_ptr->addTask([KeDa_sharedPtr, kdcip, shared_this, this]()->int
 							{
 								KOSA_HANDLE dHandle = 0;
@@ -531,9 +545,10 @@ void ITS::CameraManager::dealCameraThread() noexcept
 							auto dwHandle = KeDa_sharedPtr->keda_camera_dwHandle_[kdcip];
 							if (dwHandle)
 							{
-								KeDa_sharedPtr->disconnect(dwHandle);
 								KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = 0;
+								KeDa_sharedPtr->disconnect(dwHandle);
 							}
+							VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
 						}
 					}
 					else if (iter->camera_vender == JIEMAI) //jiemai camera
@@ -545,7 +560,7 @@ void ITS::CameraManager::dealCameraThread() noexcept
 							JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = true;
 							JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
 							locker1.unlock();
-
+							VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
 							threadPool_ptr->addTask([JieMai_sharedPtr, jmcip, shared_this, this]()->int
 							{
 								int camera_id = 0;
@@ -573,11 +588,12 @@ void ITS::CameraManager::dealCameraThread() noexcept
 							JieMaiCameraIpPort jmcip(iter->ip, iter->port);
 							JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = false;
 							auto cameraId_alarmHandle = JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip];
-							if (cameraId_alarmHandle.camera_id)
-								JieMai_sharedPtr->logout(cameraId_alarmHandle.camera_id);
+							JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
 							if (cameraId_alarmHandle.alarm_handle)
 								JieMai_sharedPtr->closeAlarmChan(cameraId_alarmHandle.alarm_handle);
-							JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
+							if (cameraId_alarmHandle.camera_id)
+								JieMai_sharedPtr->logout(cameraId_alarmHandle.camera_id);
+							VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
 						}
 					}
 				}
