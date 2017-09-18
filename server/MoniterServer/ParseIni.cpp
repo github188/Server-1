@@ -13,7 +13,7 @@ void WwFoundation::ParseIni::parse()
 	std::ifstream in;
 	in.open(strPath_);
 	if (!in.is_open())
-		throw std::runtime_error("open json file failed, maybe the file is not existent");
+		throw std::runtime_error("open config file failed, maybe the file is not existent");
 	std::string section;
 	while (!in.eof())
 	{
