@@ -266,7 +266,7 @@ void Platform::Snmp::sendRequestMessage(void * session, void * manager_entity, v
 	if (SnmpSendMsgRet == SNMPAPI_FAILURE)
 	{
 		std::ostringstream message;
-		message << "SnmpCreatePdu failed with error_code:" << SnmpGetLastError(session);
+		message << "SnmpSendMsg failed with error_code:" << SnmpGetLastError(session);
 		throw std::runtime_error(message.str());
 	}
 }

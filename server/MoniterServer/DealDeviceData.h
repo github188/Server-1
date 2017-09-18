@@ -110,7 +110,6 @@ namespace Platform
 			{
 				return ((size_t)ptr.get()) / sizeof(T);
 			}
-
 		};
 	};
 

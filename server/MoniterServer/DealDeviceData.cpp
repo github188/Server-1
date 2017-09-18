@@ -181,7 +181,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		catch (const std::exception& e)
 		{
 			auto& device_port_flow = impl->this_ptr->getPortflow();
-			MONITERSERVER_ERROR("%s, get device data failed, device id is %s ", e.what(), dca.deviceId.c_str());
+			MONITERSERVER_ERROR("%s, get device data failed, device id(%s),ip(%s) ", e.what(), dca.deviceId.c_str(), dca.deviceIp.c_str());
 			device_data[dca].clear();
 			device_port_flow[dca].clear();
 			is_oid_whole[dca] = false;
@@ -234,7 +234,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 					auto pos = (iter->first).find("cpu");
 					if (pos != std::string::npos) //find one like cpux(x=1 or 2 or 3.......)
 					{
-						exit_loop = true; //since sotr , once goto else branch,then no cpux exit
+						exit_loop = true; //since sort , once goto else branch,then no cpux exit
 						cpu_rate_all = cpu_rate_all + std::any_cast<uint64_t>(iter->second);
 						++cpu_count;
 						iter = device_data[dca].erase(iter); //remove this element
@@ -261,19 +261,23 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			if (iter_diskUsed != device_data[dca].end())
 			{
 				auto diskUsed = std::any_cast<uint64_t>(iter_diskUsed->second);
-				auto disk_use_rate = diskUsed * 100 / diskTotal;
-				sql << "," << Platform::DEVICE_DISK_RATE;
-				sql_value << "," << "'" << disk_use_rate << "'";
 				device_data[dca].erase(iter_diskUsed); //remove this element
+				if (diskTotal != 0)
+				{
+					auto disk_use_rate = diskUsed * 100 / diskTotal;
+					sql << "," << Platform::DEVICE_DISK_RATE;
+					sql_value << "," << "'" << disk_use_rate << "'";
+				}
+				else
+					MONITERSERVER_WARN("device(%s) has single disk,but diskTotal is 0, so do not insert disk_use_rate", dca.deviceIp.c_str());
 			}
 		}
 		else //has several disks or no disk
 		{
-			std::vector<uint64_t> diskTotal;
-			std::vector<uint64_t> diskUsed;
 			uint64_t diskTotal_all = 0;
 			uint64_t diskUsed_all = 0;
 			bool exit_loop = false;
+			bool any_diskTotal_isZero = false;
 
 			auto iter_diskTotal1 = device_data[dca].find("diskTotal1");
 			if (iter_diskTotal1 != device_data[dca].end()) // has several disks
@@ -287,13 +291,20 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 						exit_loop = true; //since sort , once goto else branch,then no diskTotalx or diskUsedx exit
 						if (pos != std::string::npos)//find one like diskTotalx(x=1 or 2 or 3.......)
 						{
-							diskTotal.emplace_back(std::any_cast<uint64_t>(iter->second));
-							diskTotal_all = diskTotal_all + std::any_cast<uint64_t>(iter->second);
+							//diskTotal.emplace_back(std::any_cast<uint64_t>(iter->second));
+							auto diskTotal_temp = std::any_cast<uint64_t>(iter->second);
+							if (diskTotal_temp != 0)
+								diskTotal_all = diskTotal_all + std::any_cast<uint64_t>(iter->second);
+							else
+							{
+								any_diskTotal_isZero = true;
+								MONITERSERVER_WARN("device(%s) one diskTotal is 0, so do not insert disk_use_rate", dca.deviceIp.c_str());
+							}
 							iter = device_data[dca].erase(iter);
 						}
 						else //find one like diskUsedx(x=1 or 2 or 3.......)
 						{
-							diskUsed.emplace_back(std::any_cast<uint64_t>(iter->second));
+							//diskUsed.emplace_back(std::any_cast<uint64_t>(iter->second));
 							diskUsed_all = diskUsed_all + std::any_cast<uint64_t>(iter->second);
 							iter = device_data[dca].erase(iter);
 						}
@@ -305,9 +316,12 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 						++iter;
 					}
 				}
-				auto disk_use_rate = diskUsed_all * (float)100.0 / diskTotal_all;
-				sql << "," << Platform::DEVICE_DISK_RATE;
-				sql_value << "," << "'" << disk_use_rate << "'";
+				if (!any_diskTotal_isZero)
+				{
+					auto disk_use_rate = diskUsed_all * (float)100.0 / diskTotal_all;
+					sql << "," << Platform::DEVICE_DISK_RATE;
+					sql_value << "," << "'" << disk_use_rate << "'";
+				}
 			}
 		}
 
@@ -330,10 +344,15 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 				if (iter_memoryUsed != device_data[dca].end())
 				{
 					auto memoryUsed = std::any_cast<uint64_t>(iter_memoryUsed->second);
-					auto mem_use_rate = memoryUsed * 100 / memoryTotal;
-					sql << "," << Platform::DEVICE_MEMORY_RATE;
-					sql_value << "," << "'" << mem_use_rate << "'";
 					device_data[dca].erase(iter_memoryUsed); //remove this element
+					if (memoryTotal != 0)
+					{
+						auto mem_use_rate = memoryUsed * (float)100.0 / memoryTotal;
+						sql << "," << Platform::DEVICE_MEMORY_RATE;
+						sql_value << "," << "'" << mem_use_rate << "'";
+					}
+					else
+						MONITERSERVER_WARN("device(%s) memoryTotal is 0,so do not insert mem_use_rate", dca.deviceIp.c_str());
 				}
 			}
 		}
@@ -350,6 +369,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		int port_count = device_data[dca].size() / 3;
 		if (port_count > 0)
 		{
+			bool any_ifSpeed_isZero = false;
 			std::vector<Platform::PortFlow> this_port_flow;
 			Platform::PortFlow port_flow;
 			auto iter_net = device_data[dca].begin();
@@ -357,10 +377,11 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			{
 				auto iter_net_temp = iter_net;
 				port_flow.ifSpeed = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-				if (port_flow.ifSpeed == 0) //maybe the device reboot,oid has been changed. drop this device data
+				if (port_flow.ifSpeed == 0)
 				{
-					device_data[dca].clear();
-					return;
+					MONITERSERVER_WARN("device(%s) ifSpeed which get from device is 0,so do not insert net_use_rate", dca.deviceIp.c_str());
+					any_ifSpeed_isZero = true;
+					break;
 				}
 
 				for (int j = 0; j < port_count; ++j)
@@ -372,46 +393,44 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 				port_flow.out = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
 				this_port_flow.emplace_back(port_flow);
 			}
+
 			auto iter = device_port_flow.find(dca);
-			if (iter != device_port_flow.end() && !(iter->second.empty())) //this device has last port_flow data
+			if (!any_ifSpeed_isZero)
 			{
-				std::vector<float> net_use_rate;
-				float net_useRate_all = 0;
-				auto last_port_flow = iter->second;
-				assert(this_port_flow.size() == last_port_flow.size());
-				for (int i = 0; i < static_cast<int>(last_port_flow.size()); i++)
+				if (iter != device_port_flow.end() && !(iter->second.empty())) //this device has last port_flow data
 				{
-					auto change_flow_in = this_port_flow[i].in - last_port_flow[i].in;
-					auto change_flow_out = this_port_flow[i].out - last_port_flow[i].out;
-					auto change_flow = change_flow_in + change_flow_out; //byte
+					std::vector<float> net_use_rate;
+					float net_useRate_all = 0;
+					auto last_port_flow = iter->second;
+					assert(this_port_flow.size() == last_port_flow.size());
+					for (int i = 0; i < static_cast<int>(last_port_flow.size()); i++)
+					{
+						auto change_flow_in = this_port_flow[i].in - last_port_flow[i].in;
+						auto change_flow_out = this_port_flow[i].out - last_port_flow[i].out;
+						auto change_flow = change_flow_in + change_flow_out; //byte
 
-					auto speed = (float)1.0* change_flow * 8 / (impl->this_ptr->cm_.moniter_rate / (float)1000.0);
-					auto use_rate = speed * 100 / this_port_flow[i].ifSpeed;
-					net_useRate_all = net_useRate_all + use_rate;
-					net_use_rate.emplace_back(use_rate);
-				}
-				float net_useRate_average = net_useRate_all / (net_use_rate.size());
-				if (net_useRate_average > (float)100)
-				{
-					MONITERSERVER_INFO("the device(id:%s) maybe reboot,net_useRate_average is %f", dca.deviceId.c_str(), net_useRate_average);
-					net_useRate_average = 0;
-				}
-				//if (this_port_flow.size() > 1)
-				//{
-				auto iter_max = std::max_element(net_use_rate.begin(), net_use_rate.end());
-				sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
-				if (*iter_max < (float)100)
+						auto speed = (float)1.0* change_flow * 8 / (impl->this_ptr->cm_.moniter_rate / (float)1000.0);
+						auto use_rate = speed * 100 / this_port_flow[i].ifSpeed;
+						net_useRate_all = net_useRate_all + use_rate;
+						net_use_rate.emplace_back(use_rate);
+					}
+					float net_useRate_average = net_useRate_all / (net_use_rate.size());
+					if (net_useRate_average > (float)100)
+						MONITERSERVER_WARN("the device(ip:%s) maybe reboot,net_useRate_average is %f", dca.deviceIp.c_str(), net_useRate_average);
+
+					auto iter_max = std::max_element(net_use_rate.begin(), net_use_rate.end());
+					sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
 					sql_value << "," << "'" << *iter_max << "'";
-				else
-					sql_value << "," << "'" << 0 << "'"; //reboot,so 0	
-				//}
+					sql << "," << Platform::DEVICE_BANDWIDTH_USE_AVERAGE;
+					sql_value << "," << "'" << net_useRate_average << "'";
 
-				sql << "," << Platform::DEVICE_BANDWIDTH_USE_AVERAGE;
-				sql_value << "," << "'" << net_useRate_average << "'";
-				iter->second.swap(this_port_flow);//this_port_flow will become the last_port_flow for the next request
+					iter->second.swap(this_port_flow);//this_port_flow will become the last_port_flow for the next request
+				}
+				else // no last port_flow data,this time do not write db
+					device_port_flow[dca] = this_port_flow;
 			}
-			else // no last port_flow data,this time do not write db
-				device_port_flow[dca] = this_port_flow;
+			else
+				iter->second.clear(); // for next request ,there is no last_port_flow any more
 		}
 		device_data[dca].clear();
 
@@ -420,6 +439,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		sql << ")";
 		sql_value << ")";
 		sql << sql_value.str();
+		auto str = sql.str();
 		db_write->addSql(std::move(sql.str()));
 
 		//end = std::chrono::system_clock::now();
@@ -446,7 +466,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 	{
 		MONITERSERVER_ERROR("unknown exception in snmpCallBack");
 	}
-	
+
 	/*auto end1 = std::chrono::system_clock::now();
 		int elapsed_seconds1 = std::chrono::duration_cast<std::chrono::milliseconds>
 			(end1 - start).count();
@@ -466,7 +486,7 @@ void Platform::DealDeviceData::init()
 	message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
 		cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
 
-	db_writer_ = std::make_shared<WwFoundation::DbWriter>(1, 10, 2000000, message.str()); //max_sql_count:2000000 nearly 1G ,if each sql 512Byte
+	db_writer_ = std::make_shared<WwFoundation::DbWriter>(1, 2000000, 1, message.str()); //max_sql_count:2000000 nearly 1G ,if each sql 512Byte
 	load_.resize(cm_.load_count);
 	snmp_->init();
 	makeLoadsession();
@@ -670,7 +690,7 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 			auto iter_s = load_.begin();
 			for (auto iter = add.begin(); iter != add.end(); ++iter)
 			{
-				DeviceAttribute da;		
+				DeviceAttribute da;
 				da.dca = (*iter);
 				da.session = load_session_[*iter_s];
 				auto ret = setSnmpParameter(da.session, da.manager_entity, da.context, da.vbl,
@@ -738,7 +758,7 @@ void Platform::DealDeviceData::makeLoadsession()
 		impl->mutex_ptr = mutex_ptr;
 		void* session;
 		snmp_->makeSession(snmpCallBack, impl.get(), session);
-	
+
 		auto ptr = std::make_shared<std::vector<DeviceAttribute>>(std::vector<DeviceAttribute>());
 		load_[i] = ptr;
 		load_session_.emplace(std::make_pair(ptr, session));
@@ -799,22 +819,41 @@ void Platform::DealDeviceData::releaseDeviceResource(void * session, void * cont
 void Platform::DealDeviceData::deviceMonitorThread() noexcept
 {
 	otl_connect db;
-	otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
-	std::ostringstream message;
-	message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
-		cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
-Retry:
 	try
 	{
-		std::vector<DeviceCompareAttribute> device_compare_attribute_temp;
-		std::vector<DeviceCompareAttribute> add_device_temp;
-		std::vector<DeviceCompareAttribute> decrease_device_temp;
+		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
+		std::ostringstream message;
+		message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
+			cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
 
-		db.rlogon(message.str().c_str());
+		bool need_rlogon = true;
 		while (run_)
 		{
+			std::vector<DeviceCompareAttribute> device_compare_attribute_temp;
+			std::vector<DeviceCompareAttribute> add_device_temp;
+			std::vector<DeviceCompareAttribute> decrease_device_temp;
 			getMessageFromConfigure(CONFIGURE_DIR);
-			getDeviceIpFromDB(device_compare_attribute_temp, db);
+			try
+			{
+				if (need_rlogon)
+				{
+					db.rlogon(message.str().c_str());
+					need_rlogon = false;
+				}
+				getDeviceIpFromDB(device_compare_attribute_temp, db);
+			}
+			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
+			{
+				MONITERSERVER_ERROR("%s", p.msg);//error message
+				MONITERSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
+				MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
+
+				if (db.connected == 1)
+					db.logoff();
+				std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
+				need_rlogon = true;
+				continue;
+			}
 			auto ret = isDeviceChange(device_compare_attribute_temp, add_device_temp, decrease_device_temp);
 			if (ret)//device changed
 				setDevcieAndLoadBalancing(add_device_temp, decrease_device_temp);
@@ -849,10 +888,13 @@ Retry:
 								break;
 							}
 						}
-						snmp_->setPdu((*iter).pdu, &((*iter).vbl));
-						snmp_->sendRequestMessage((*iter).session, (*iter).manager_entity, (*iter).agent_entity,
-							(*iter).context, (*iter).pdu);
-						cleanVbl(count);
+						if (count != 0)
+						{
+							snmp_->setPdu((*iter).pdu, &((*iter).vbl));
+							snmp_->sendRequestMessage((*iter).session, (*iter).manager_entity, (*iter).agent_entity,
+								(*iter).context, (*iter).pdu);
+							cleanVbl(count);
+						}
 					};
 					try
 					{
@@ -887,22 +929,8 @@ Retry:
 					}
 				}
 			}
-			device_compare_attribute_temp.clear();
-			add_device_temp.clear();
-			decrease_device_temp.clear();
 			std::this_thread::sleep_for(std::chrono::milliseconds(cm_.moniter_rate));
 		}
-	}
-	catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
-	{
-		MONITERSERVER_ERROR("%s", p.msg);//error message
-		MONITERSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
-		MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
-
-		if (db.connected == 1)
-			db.logoff();
-		std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
-		goto Retry;
 	}
 	catch (const std::exception& e)
 	{
@@ -964,7 +992,4 @@ void Platform::DealDeviceData::deviceOfflineMonitorThread() noexcept
 	{
 		MONITERSERVER_ERROR("deviceOfflineMonitorThread exit with unknown exception!!");
 	}
-
-
-	
 }
