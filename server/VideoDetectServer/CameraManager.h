@@ -15,7 +15,7 @@ namespace ITS
 
 	const std::string KEDA = "1";
 	const std::string JIEMAI = "2";
-	const std::string VIDEO_DETECT = "58";
+	const std::string VIDEO_DETECT = "51";
 	const std::string DEVICE_STATUS_OK = "101";
 
 	const std::string ITS_DEVICE_TYPE = "type";  //because  DEVICE_TYPE is defined in the fucking win
