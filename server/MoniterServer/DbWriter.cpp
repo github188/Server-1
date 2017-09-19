@@ -65,6 +65,7 @@ void WwFoundation::DbWriter::runThread()
 				count = 0;
 			}
 		}
+		db_ptr->commit();
 	}
 	catch (const std::exception& e)
 	{

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="DbWriter">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="App">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ParseIni">
+      <UniqueIdentifier>{afc1e072-1ec8-4144-b47e-4fbee170a850}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RAII">
+      <UniqueIdentifier>{d5d7411b-4e3b-4275-9fec-fbf6a0efe2b3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.cpp">
+      <Filter>App</Filter>
+    </ClCompile>
+    <ClCompile Include="DbWriter.cpp">
+      <Filter>DbWriter</Filter>
+    </ClCompile>
+    <ClCompile Include="ParseIni.cpp">
+      <Filter>ParseIni</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DbWriter.h">
+      <Filter>DbWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="SyncQueue.h">
+      <Filter>DbWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="ParseIni.h">
+      <Filter>ParseIni</Filter>
+    </ClInclude>
+    <ClInclude Include="RAII.h">
+      <Filter>RAII</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

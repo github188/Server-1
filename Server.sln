@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.12
+VisualStudioVersion = 15.0.26730.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{B8F34850-093D-47EA-833D-5093334F1AFD}"
 EndProject
@@ -26,6 +26,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KeDaSDK", "ThirdParty\KeDaSDK\KeDaSDK.vcxproj", "{02C9CE67-CAF7-43EA-888E-BCC09BDBAE84}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JieMaiSDK", "ThirdParty\JieMaiSDK\JieMaiSDK.vcxproj", "{B9E23106-0658-44CD-9EDC-F7E49CB647A3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MakeVideoDetectData", "test\MakeVideoDetectData\MakeVideoDetectData.vcxproj", "{916661C3-5DD9-4259-AF86-C5F700883C01}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -99,6 +101,14 @@ Global
 		{B9E23106-0658-44CD-9EDC-F7E49CB647A3}.Release|x64.Build.0 = Release|x64
 		{B9E23106-0658-44CD-9EDC-F7E49CB647A3}.Release|x86.ActiveCfg = Release|Win32
 		{B9E23106-0658-44CD-9EDC-F7E49CB647A3}.Release|x86.Build.0 = Release|Win32
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Debug|x64.ActiveCfg = Debug|x64
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Debug|x64.Build.0 = Debug|x64
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Debug|x86.ActiveCfg = Debug|Win32
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Debug|x86.Build.0 = Debug|Win32
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Release|x64.ActiveCfg = Release|x64
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Release|x64.Build.0 = Release|x64
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Release|x86.ActiveCfg = Release|Win32
+		{916661C3-5DD9-4259-AF86-C5F700883C01}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,6 +122,7 @@ Global
 		{56C3B008-ED41-40A7-B3C9-00068E0E8ADE} = {B8F34850-093D-47EA-833D-5093334F1AFD}
 		{02C9CE67-CAF7-43EA-888E-BCC09BDBAE84} = {2C91EB83-C401-47B7-8578-678135277FAC}
 		{B9E23106-0658-44CD-9EDC-F7E49CB647A3} = {2C91EB83-C401-47B7-8578-678135277FAC}
+		{916661C3-5DD9-4259-AF86-C5F700883C01} = {0FC49144-5DAB-49B9-93D5-B977B259C335}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6B1FBD76-29B3-4E5F-AB3A-4DAB97E6C779}
