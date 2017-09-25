@@ -644,7 +644,7 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 				for (int i = 0; i < count; ++i)
 				{
 					DeviceAttribute da;
-					memset(&da, 0, sizeof(DeviceAttribute));
+					//memset(&da, 0, sizeof(DeviceAttribute));
 					da.dca = *iter;
 					da.session = load_session_[*iter_s];
 					auto ret = setSnmpParameter(da.session, da.manager_entity, da.context, da.vbl,
