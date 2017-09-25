@@ -1,7 +1,7 @@
 #include "snmp.h"
 #include <sstream>
 #include <cassert>
-#include "LogMacros.h"
+
 
 #pragma comment(lib,"Wsnmp32.lib")
 
@@ -58,6 +58,7 @@ void Platform::Snmp::getPduData(void * recv_pdu, void *& vb_list)
 	{
 		std::ostringstream message;
 		message << "Get unexpected PduData," << "ErrStatus:" << ErrStatus << ",ErrIndex" << ErrIndex;
+		releaseVbl(vb_list);
 		throw std::logic_error(message.str());
 	}
 }
@@ -100,7 +101,7 @@ void Platform::Snmp::translateOidToStr(smiLPCOID srcOID, std::string & str)
 	Ret = SnmpFreeDescriptor(SNMP_SYNTAX_OID, (smiLPOPAQUE)(srcOID));
 	if (Ret == SNMPAPI_FAILURE)
 	{
-		MONITERSERVER_WARN("SnmpFreeDescriptor failed with error_code: %d\n", SnmpGetLastError(nullptr));
+		printf("SnmpFreeDescriptor failed with error_code: %d\n", SnmpGetLastError(nullptr));
 	}
 	str = s;
 }
@@ -180,7 +181,7 @@ void Platform::Snmp::setVbl(void * vbl, smiUINT32 index, const std::string & oid
 	Ret = SnmpFreeDescriptor(SNMP_SYNTAX_OID, reinterpret_cast<smiLPOPAQUE>(&oid));
 	if (Ret == SNMPAPI_FAILURE)
 	{
-		MONITERSERVER_WARN("SnmpFreeDescriptor failed with error_code: %d\n", SnmpGetLastError(nullptr));
+		printf("SnmpFreeDescriptor failed with error_code: %d\n", SnmpGetLastError(nullptr));
 	}
 }
 
@@ -277,7 +278,7 @@ void Platform::Snmp::releaseEntity(void * entity) /*noexcept*/
 	if (ret == SNMPAPI_FAILURE)
 	{
 		auto ErrorRet = SnmpGetLastError(nullptr);
-		MONITERSERVER_WARN("SnmpFreeEntity free entity(%p) with error code: %d\n",entity, ErrorRet);
+		printf("SnmpFreeEntity free entity(%p) with error code: %d\n",entity, ErrorRet);
 	}
 }
 
@@ -287,7 +288,7 @@ void Platform::Snmp::releaseContext(void * context)/* noexcept*/
 	if (ret == SNMPAPI_FAILURE)
 	{
 		auto ErrorRet = SnmpGetLastError(nullptr);
-		MONITERSERVER_WARN("SnmpFreeContext free context(%p) with error code: %d\n", context, ErrorRet);
+		printf("SnmpFreeContext free context(%p) with error code: %d\n", context, ErrorRet);
 	}
 }
 
@@ -297,7 +298,7 @@ void Platform::Snmp::releaseVbl(void * vbl)/* noexcept*/
 	if (ret == SNMPAPI_FAILURE)
 	{
 		auto ErrorRet = SnmpGetLastError(nullptr);
-		MONITERSERVER_WARN("SnmpFreeVbl free vbl(%p) with error code: %d\n", vbl, ErrorRet);
+		printf("SnmpFreeVbl free vbl(%p) with error code: %d\n", vbl, ErrorRet);
 	}
 }
 
@@ -307,7 +308,7 @@ void Platform::Snmp::releasePdu(void * pdu) /*noexcept*/
 	if (ret == SNMPAPI_FAILURE)
 	{
 		auto ErrorRet = SnmpGetLastError(nullptr);
-		MONITERSERVER_WARN("SnmpFreePdu free pdu(%p) with error code: %d\n",pdu, ErrorRet);
+		printf("SnmpFreePdu free pdu(%p) with error code: %d\n",pdu, ErrorRet);
 	}
 }
 
@@ -317,6 +318,6 @@ void Platform::Snmp::releaseSession(void * session)/* noexcept*/
 	if (ret == SNMPAPI_FAILURE)
 	{
 		auto ErrorRet = SnmpGetLastError(nullptr);
-		MONITERSERVER_WARN("SnmpClose free session(%p) with error code: %d\n", session, ErrorRet);
+		printf("SnmpClose free session(%p) with error code: %d\n", session, ErrorRet);
 	}
 }

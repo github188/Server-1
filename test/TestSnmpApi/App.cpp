@@ -38,6 +38,7 @@ int main()
 			{
 			case SNMP_SYNTAX_INT32:
 			{
+				auto x = value.value.sNumber;
 				break;
 			}
 			case SNMP_SYNTAX_UINT32:
@@ -45,6 +46,7 @@ int main()
 			case SNMP_SYNTAX_GAUGE32:
 			case SNMP_SYNTAX_TIMETICKS:
 			{
+				auto x = value.value.uNumber;
 				break;
 			}
 			case SNMP_SYNTAX_CNTR64:
@@ -58,8 +60,10 @@ int main()
 			case SNMP_SYNTAX_IPADDR:
 			case SNMP_SYNTAX_NSAPADDR:
 			{
-				std::string str = reinterpret_cast<char*>(value.value.string.ptr);
-				printf("%s\n", str.c_str());
+				char desc[1024 * 2] = { 0 };
+				memcpy(desc, value.value.string.ptr, value.value.string.len);
+				std::string str = desc;
+				//std::string str1 = reinterpret_cast<char*>(value.value.string.ptr);
 				SnmpFreeDescriptor(value.syntax, &(value.value.string));
 				break;
 			}
@@ -75,10 +79,12 @@ int main()
 			case SNMP_SYNTAX_NOSUCHINSTANCE:
 			case SNMP_SYNTAX_ENDOFMIBVIEW:
 			{
+				printf("oid is invalid");
 				break;
 			}
 			default:
 			{
+				printf("out of win define range");
 				break;
 			}
 			}
@@ -96,7 +102,7 @@ int main()
 	snmp_ptr->makeManagerEntity(session, manager_entity);
 
 	void* agent_entity = nullptr;
-	snmp_ptr->makeAgentEntity(session, "192.168.1.186", agent_entity);
+	snmp_ptr->makeAgentEntity(session, "192.168.1.199", agent_entity);
 
 	void* vbl = nullptr;
 	snmp_ptr->makeVbl(session, vbl);
@@ -110,13 +116,17 @@ int main()
 	while (true)
 	{
 		snmp_ptr->setVbl(vbl, 0, "1.3.6.1.2.1.1.1.0");
+		snmp_ptr->setVbl(vbl, 0, "1.3.6.1.2.1.25.3.3.1.2.4");
+		snmp_ptr->setVbl(vbl, 0, "1.3.6.1.2.1.25.3.3.1.2.5");
+		snmp_ptr->setVbl(vbl, 0, "1.3.6.1.2.1.25.3.3.1.2.6");
+		snmp_ptr->setVbl(vbl, 0, "1.3.6.1.2.1.25.3.3.1.2.8");
 		snmp_ptr->setPdu(pdu, &vbl);
 		int vbl_count = 0;
 		snmp_ptr->getCountVbl(vbl, vbl_count);
 		//printf("%d\n", vbl_count);
 		snmp_ptr->sendRequestMessage(session, manager_entity, agent_entity, context, pdu);
 		snmp_ptr->deleteVb(vbl, 1);
-		std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 	}
 	return 0;
 }
