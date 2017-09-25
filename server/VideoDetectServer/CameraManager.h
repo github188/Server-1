@@ -107,7 +107,6 @@ namespace ITS
 		std::mutex mtx_;
 		ConfigMessage cm_;
 		std::thread notify_camera_changed_thread_;
-		std::thread deal_camera_thread_;
 		std::condition_variable has_notify_;
 		std::vector<CameraAttribute> camera_attribute_; //do not change frequently,so put into object rather than shared_ptr, just for comparing conveniently
 		std::queue<std::pair<CameraChangeType, std::vector<CameraAttribute>>> camera_data_;
@@ -124,8 +123,6 @@ namespace ITS
 			has_notify_.notify_all();
 			if(notify_camera_changed_thread_.joinable())
 				notify_camera_changed_thread_.join();
-			if (deal_camera_thread_.joinable())
-				deal_camera_thread_.join();
 		}
 	private:
 		void getMessageFromIniConfigure(const std::string& dir);
@@ -133,7 +130,6 @@ namespace ITS
 		bool isCameraChange(std::vector<CameraAttribute>& camera_attribute, std::vector<CameraAttribute>& camera_add,
 			std::vector<CameraAttribute>& camera_decrease);
 		void notifyCameraChangedThread() noexcept;
-		void dealCameraThread() noexcept;
 	};
 }
 

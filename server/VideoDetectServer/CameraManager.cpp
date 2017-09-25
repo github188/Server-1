@@ -21,7 +21,6 @@ void ITS::CameraManager::init()
 {
 	getMessageFromIniConfigure(INI_CONFIGURE_DIR);
 	notify_camera_changed_thread_ = std::thread(std::bind(&CameraManager::notifyCameraChangedThread, this));
-	deal_camera_thread_ = std::thread(std::bind(&CameraManager::dealCameraThread, this));
 }
 
 void ITS::CameraManager::getMessageFromIniConfigure(const std::string & dir)
@@ -63,9 +62,13 @@ void ITS::CameraManager::getCameraAttributeFromDB(std::vector<CameraAttribute>& 
 		CameraAttribute ca;
 		ca.device_id = device_id;
 		ca.ip = device_ip;
-		ca.port = static_cast<uint16_t>(device_port);
 		ca.camera_vender = device_sub_type;
-
+		if (device_sub_type == KEDA) //keda
+		{
+			ca.port = static_cast<uint16_t>(device_port);
+			if (ca.port == 80)
+				ca.port = 20000;
+		}
 		auto pos = device_lane_number.find_first_of(EXCISION);
 		while (pos != std::string::npos) // has more than one lane
 		{
@@ -90,6 +93,7 @@ bool ITS::CameraManager::isCameraChange(std::vector<CameraAttribute>& camera_att
 	{
 		if (!camera_attribute_.empty())
 		{
+			//std::for_each(camera_attribute.begin(), camera_attribute.end(), []() {});
 			for (auto iter = camera_attribute.begin(); iter != camera_attribute.end(); ++iter)
 			{
 				auto iter_ = std::find(camera_attribute_.begin(), camera_attribute_.end(), *iter);
@@ -126,7 +130,6 @@ bool ITS::CameraManager::isCameraChange(std::vector<CameraAttribute>& camera_att
 	}
 }
 
-
 void ITS::CameraManager::notifyCameraChangedThread() noexcept
 {
 	try
@@ -136,71 +139,6 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 			cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
 		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
 		auto db_ptr = std::make_shared<otl_connect>();
-
-		bool need_rlogon = true;
-		while (run_)
-		{
-			try
-			{
-				if (need_rlogon)
-				{
-					db_ptr->rlogon(message.str().c_str()/*"wangwei/111111@192.168.1.192:1521/abcdef"*/);
-					need_rlogon = false;
-				}
-				std::vector<CameraAttribute> camera_attribute;
-				std::vector<CameraAttribute> camera_add;
-				std::vector<CameraAttribute> camera_decrease;
-				getCameraAttributeFromDB(camera_attribute, *db_ptr);
-				auto ret = isCameraChange(camera_attribute, camera_add, camera_decrease);
-				if (ret) //camera changed
-				{
-					if (!camera_add.empty())
-					{
-						std::unique_lock<std::mutex> locker(mtx_);
-						camera_data_.push(std::make_pair(CameraChangeType::CameraAdd, camera_add));
-						locker.unlock();
-						has_notify_.notify_one(); //notify the camera thread to deal this camera changing
-					}
-					if (!camera_decrease.empty())
-					{
-						std::unique_lock<std::mutex> locker(mtx_);
-						camera_data_.push(std::make_pair(CameraChangeType::CameraReduce, camera_decrease));
-						locker.unlock();
-						has_notify_.notify_one(); //notify the camera thread to deal this camera changing
-					}
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(GET_CAMERA_ATTRIBUTE_RATE)); // select from db each 60s
-			}
-			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
-			{
-				VIDEODETECTSERVER_ERROR("%s", p.msg);//error message
-				VIDEODETECTSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
-				VIDEODETECTSERVER_ERROR("%s", p.var_info);//the variable that caused the error
-				if (db_ptr->connected == 1)
-					db_ptr->logoff();
-				std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
-				need_rlogon = true;
-			}
-		}
-	}
-	catch (const std::exception& e)
-	{
-		VIDEODETECTSERVER_ERROR("CameraManager::notifyCameraChangedThread exit with %s", e.what());
-	}
-	catch (...)
-	{
-		VIDEODETECTSERVER_ERROR("CameraManager::notifyCameraChangedThread exit with unknown exception");
-	}
-}
-
-void ITS::CameraManager::dealCameraThread() noexcept
-{
-	try
-	{
-		std::ostringstream message;
-		message << cm_.db_UserName << "/" << cm_.db_password << "@" <<
-			cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
-
 		auto threadPool_ptr = std::make_shared<WwFoundation::ThreadPool>(cm_.thread_num, cm_.thread_num * 2);
 		auto dbWriter_ptr = std::make_shared<WwFoundation::DbWriter>(DB_WRITER_THREAD_NUMBER, DB_WRITER_MAX_SQL_COUNT, cm_.sql_commit_size, message.str());
 		auto KeDa_sharedPtr = std::make_shared<KeDa>();
@@ -263,36 +201,23 @@ void ITS::CameraManager::dealCameraThread() noexcept
 					if (vfsin->dwLaneId == 0) //all lane has data
 					{
 						std::ostringstream sql;
-						for (int i = 0; i < static_cast<int>(lane_number.size()); ++i)
+						for (int i = 1; i < ROAD_NUM_MAX; i++)
 						{
 							sql << "insert into " << cm_.videoDetectDataTable_name << "("
-								<< CAMERA_NUMBER << "," << CAMERA_LANE_NUMBER << "," <<
-								CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << ")"
+								<< CAMERA_NUMBER << "," << CAMERA_RAW_LANE_NUMBER << "," <<
+								CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << "," <<
+								CAMERA_LANE_NUMBER << ")"
 								<< " values (" << "'" << camera_number << "'"
-								<< "," << "'" << lane_number[i] << "'"
+								<< "," << "'" << i << "'"
 								<< "," << "'" << vfsin->atFlowStat[i].dwStatCnts << "'"
-								<< "," << "to_date('" << time << "','YYYY-MM-DD HH24:MI:SS')" << ")";
+								<< "," << "to_date('" << time << "','YYYY-MM-DD HH24:MI:SS')";
+							if (i <= static_cast<int>(lane_number_size))
+								sql << "," << "'" << lane_number[i - 1] << "'" << ")";
+							else
+								sql << "," << "'" << "" << "'" << ")";
 							dbWriter_ptr->addSql(sql.str());
 							sql.clear();
 							sql.str("");
-						}
-						if (static_cast<int>(lane_number.size()) < (ROAD_NUM_MAX - 1))
-						{
-							for (int i = static_cast<int>(lane_number.size()) + 1; i < ROAD_NUM_MAX; ++i)
-							{
-								sql << "insert into " << cm_.videoDetectDataTable_name << "("
-									<< CAMERA_NUMBER << "," << CAMERA_LANE_NUMBER << "," <<
-									CAMERA_CAR_FLOW << "," << CAMERA_UPLOAD_TIME << ")"
-									<< " values (" << "'" << camera_number << "'"
-									<< "," << "'" << i << "'"
-									<< "," << "'" << vfsin->atFlowStat[i].dwStatCnts << "'"
-									<< "," << "to_date('" << time << "','YYYY-MM-DD HH24:MI:SS')" << ")";
-								dbWriter_ptr->addSql(sql.str());
-								sql.clear();
-								sql.str("");
-							}
-							VIDEODETECTSERVER_WARN("the camera(%s:%d) has %d lanes,actual lanes which get from db is %d"
-								, cip.ip.c_str(), cip.port, ROAD_NUM_MAX - 1, lane_number.size());
 						}
 					}
 					else
@@ -491,127 +416,138 @@ void ITS::CameraManager::dealCameraThread() noexcept
 			}
 		};
 
+		bool need_rlogon = true;
 		while (run_)
 		{
-			std::unique_lock<std::mutex> locker(mtx_);
-			has_notify_.wait(locker, [shared_this, this]() {return !run_ || !camera_data_.empty(); });
-			if (!run_)
-				break;
-			auto camera_data = std::move(camera_data_);
-			locker.unlock();
-
-			int size = camera_data.size();
-			for (auto i = 0; i < size; ++i)
+			try
 			{
-				auto data_pair = camera_data.front();
-				camera_data.pop();
-				auto camera_event_type = data_pair.first;
-				for (auto iter = data_pair.second.begin(); iter != data_pair.second.end(); ++iter)
+				if (need_rlogon)
 				{
-					if (iter->camera_vender == KEDA) //keda camera
+					db_ptr->rlogon(message.str().c_str()/*"wangwei/111111@192.168.1.192:1521/abcdef"*/);
+					need_rlogon = false;
+				}
+				std::vector<CameraAttribute> camera_attribute;
+				std::vector<CameraAttribute> camera_add;
+				std::vector<CameraAttribute> camera_decrease;
+				getCameraAttributeFromDB(camera_attribute, *db_ptr);
+				auto ret = isCameraChange(camera_attribute, camera_add, camera_decrease);
+				if (ret) //camera changed
+				{
+					if (!camera_add.empty())
 					{
-						if (camera_event_type == CameraChangeType::CameraAdd)// CamerasAdded
+						for (auto iter = camera_add.begin(); iter != camera_add.end(); ++iter)
 						{
-							KeDaCameraIpPort kdcip(iter->ip, iter->port);
-							std::unique_lock<std::mutex> locker1(KeDa_sharedPtr->mtx_);
-							KeDa_sharedPtr->keda_camera_need_connect_[kdcip] = true;
-							KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = 0;
-							locker1.unlock();
-							VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
-							threadPool_ptr->addTask([KeDa_sharedPtr, kdcip, shared_this, this]()->int
+							if (iter->camera_vender == KEDA) //keda camera
 							{
-								KOSA_HANDLE dHandle = 0;
-								auto ret = KeDa_sharedPtr->connectAndLogin(kdcip.ip, kdcip.port, cm_.keda_userName, cm_.keda_password, dHandle);
-								if (ret == 0)
-								{
-									std::unique_lock<std::mutex> locker(KeDa_sharedPtr->mtx_);
-									KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = dHandle;
-									locker.unlock();
-									return WwFoundation::TASK_OK;
-								}
-								else //connect failed	
-								{
-									std::this_thread::sleep_for(std::chrono::milliseconds(CONNECT_RATE));
-									return WwFoundation::TASK_RETRY;
-								}
-							});
-						}
-						else if (camera_event_type == CameraChangeType::CameraReduce)//CamerasRemove
-						{
-							//do not remove the camera,just for next using.ip and port(KeDaCameraIpPort) for next camera 
-							//extremely be same in keda_camera_need_connect_(keda_camera_dwHandle_)
-							KeDaCameraIpPort kdcip(iter->ip, iter->port);
-							KeDa_sharedPtr->keda_camera_need_connect_[kdcip] = false;
-							auto dwHandle = KeDa_sharedPtr->keda_camera_dwHandle_[kdcip];
-							if (dwHandle)
-							{
+								KeDaCameraIpPort kdcip(iter->ip, iter->port);
+								std::unique_lock<std::mutex> locker1(KeDa_sharedPtr->mtx_);
+								KeDa_sharedPtr->keda_camera_need_connect_[kdcip] = true;
 								KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = 0;
-								KeDa_sharedPtr->disconnect(dwHandle);
+								locker1.unlock();
+								VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
+								threadPool_ptr->addTask([KeDa_sharedPtr, kdcip, shared_this, this]()->int
+								{
+									KOSA_HANDLE dHandle = 0;
+									auto ret = KeDa_sharedPtr->connectAndLogin(kdcip.ip, kdcip.port, cm_.keda_userName, cm_.keda_password, dHandle);
+									if (ret == 0)
+									{
+										std::unique_lock<std::mutex> locker(KeDa_sharedPtr->mtx_);
+										KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = dHandle;
+										locker.unlock();
+										return WwFoundation::TASK_OK;
+									}
+									else //connect failed	
+									{
+										std::this_thread::sleep_for(std::chrono::milliseconds(CONNECT_RATE));
+										return WwFoundation::TASK_RETRY;
+									}
+								});
 							}
-							VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
+							else if (iter->camera_vender == JIEMAI)  //jiemai camera
+							{
+								JieMaiCameraIpPort jmcip(iter->ip, iter->port);
+								std::unique_lock<std::mutex> locker1(JieMai_sharedPtr->mtx_);
+								JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = true;
+								JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
+								locker1.unlock();
+								VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
+								threadPool_ptr->addTask([JieMai_sharedPtr, jmcip, shared_this, this]()->int
+								{
+									int camera_id = 0;
+									int alarm_handle = 0;
+									auto ret = JieMai_sharedPtr->login(jmcip.ip, jmcip.port, cm_.jiemai_userName, cm_.jiemai_password, camera_id, alarm_handle);
+									if (ret == 0)
+									{
+										std::unique_lock<std::mutex> locker(JieMai_sharedPtr->mtx_);
+										JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { camera_id ,alarm_handle };
+										locker.unlock();
+										VIDEODETECTSERVER_INFO("Login camera(%s:%d) ok", jmcip.ip.c_str(), jmcip.port);
+										return WwFoundation::TASK_OK;
+									}
+									else //connect failed	
+									{
+										std::this_thread::sleep_for(std::chrono::milliseconds(CONNECT_RATE));
+										return WwFoundation::TASK_RETRY;
+									}
+								});
+							}
 						}
 					}
-					else if (iter->camera_vender == JIEMAI) //jiemai camera
+					if (!camera_decrease.empty())
 					{
-						if (camera_event_type == CameraChangeType::CameraAdd)// CamerasAdded
+						for (auto iter = camera_decrease.begin(); iter != camera_decrease.end(); ++iter)
 						{
-							JieMaiCameraIpPort jmcip(iter->ip, iter->port);
-							std::unique_lock<std::mutex> locker1(JieMai_sharedPtr->mtx_);
-							JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = true;
-							JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
-							locker1.unlock();
-							VIDEODETECTSERVER_INFO("Add camera(%s:%d)", iter->ip.c_str(), iter->port);
-							threadPool_ptr->addTask([JieMai_sharedPtr, jmcip, shared_this, this]()->int
+							if (iter->camera_vender == KEDA) //keda camera
 							{
-								int camera_id = 0;
-								int alarm_handle = 0;
-								auto ret = JieMai_sharedPtr->login(jmcip.ip, jmcip.port, cm_.jiemai_userName, cm_.jiemai_password, camera_id, alarm_handle);
-								if (ret == 0)
+								//do not remove the camera,just for next using.ip and port(KeDaCameraIpPort) for next camera 
+								//extremely be same in keda_camera_need_connect_(keda_camera_dwHandle_)
+								KeDaCameraIpPort kdcip(iter->ip, iter->port);
+								KeDa_sharedPtr->keda_camera_need_connect_[kdcip] = false;
+								auto dwHandle = KeDa_sharedPtr->keda_camera_dwHandle_[kdcip];
+								if (dwHandle)
 								{
-									std::unique_lock<std::mutex> locker(JieMai_sharedPtr->mtx_);
-									JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { camera_id ,alarm_handle };
-									locker.unlock();
-									VIDEODETECTSERVER_INFO("Login camera(%s:%d) ok", jmcip.ip.c_str(), jmcip.port);
-									return WwFoundation::TASK_OK;
+									KeDa_sharedPtr->keda_camera_dwHandle_[kdcip] = 0;
+									KeDa_sharedPtr->disconnect(dwHandle);
 								}
-								else //connect failed	
-								{
-									std::this_thread::sleep_for(std::chrono::milliseconds(CONNECT_RATE));
-									return WwFoundation::TASK_RETRY;
-								}
-							});
-						}
-						else if (camera_event_type == CameraChangeType::CameraReduce)//CamerasRemove
-						{
-							//do not remove the camera,just for next using.ip and port(JieMaiCameraIpPort) for next camera 
-							//extremely be same in jiemai_camera_need_connect_(jiemai_cameraId_alarmHandle_)
-							JieMaiCameraIpPort jmcip(iter->ip, iter->port);
-							JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = false;
-							auto cameraId_alarmHandle = JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip];
-							JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
-							if (cameraId_alarmHandle.alarm_handle)
-								JieMai_sharedPtr->closeAlarmChan(cameraId_alarmHandle.alarm_handle);
-							if (cameraId_alarmHandle.camera_id)
-								JieMai_sharedPtr->logout(cameraId_alarmHandle.camera_id);
-							VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
+								VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
+							}
+							else if (iter->camera_vender == JIEMAI)  //jiemai camera
+							{
+								//do not remove the camera,just for next using.ip and port(JieMaiCameraIpPort) for next camera 
+								//extremely be same in jiemai_camera_need_connect_(jiemai_cameraId_alarmHandle_)
+								JieMaiCameraIpPort jmcip(iter->ip, iter->port);
+								JieMai_sharedPtr->jiemai_camera_need_connect_[jmcip] = false;
+								auto cameraId_alarmHandle = JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip];
+								JieMai_sharedPtr->jiemai_cameraId_alarmHandle_[jmcip] = { 0,0 };
+								if (cameraId_alarmHandle.alarm_handle)
+									JieMai_sharedPtr->closeAlarmChan(cameraId_alarmHandle.alarm_handle);
+								if (cameraId_alarmHandle.camera_id)
+									JieMai_sharedPtr->logout(cameraId_alarmHandle.camera_id);
+								VIDEODETECTSERVER_INFO("Reduce camera(%s:%d)", iter->ip.c_str(), iter->port);
+							}
 						}
 					}
 				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(GET_CAMERA_ATTRIBUTE_RATE)); // select from db each 60s
+			}
+			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
+			{
+				VIDEODETECTSERVER_ERROR("%s", p.msg);//error message
+				VIDEODETECTSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
+				VIDEODETECTSERVER_ERROR("%s", p.var_info);//the variable that caused the error
+				if (db_ptr->connected == 1)
+					db_ptr->logoff();
+				std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
+				need_rlogon = true;
 			}
 		}
-		KeDa_sharedPtr->keda_camera_need_connect_.clear();
-		JieMai_sharedPtr->jiemai_camera_need_connect_.clear();
-		dbWriter_ptr->stop();
-		threadPool_ptr->stop();
-		KeDa_sharedPtr->stopKeda();
-		JieMai_sharedPtr->stopJiemai();
 	}
 	catch (const std::exception& e)
 	{
-		VIDEODETECTSERVER_ERROR("CameraManager::dealCameraThread exit with %s", e.what());
+		VIDEODETECTSERVER_ERROR("CameraManager::notifyCameraChangedThread exit with %s", e.what());
 	}
 	catch (...)
 	{
-		VIDEODETECTSERVER_ERROR("CameraManager::dealCameraThread exit with unknown exception");
+		VIDEODETECTSERVER_ERROR("CameraManager::notifyCameraChangedThread exit with unknown exception");
 	}
 }
