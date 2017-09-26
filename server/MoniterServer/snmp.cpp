@@ -58,6 +58,7 @@ void Platform::Snmp::getPduData(void * recv_pdu, void *& vb_list)
 	{
 		std::ostringstream message;
 		message << "Get unexpected PduData," << "ErrStatus:" << ErrStatus << ",ErrIndex" << ErrIndex;
+		releaseVbl(vb_list);
 		throw std::logic_error(message.str());
 	}
 }
