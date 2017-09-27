@@ -141,7 +141,6 @@
   <ItemGroup>
     <ClInclude Include="DbWriter.h" />
     <ClInclude Include="ParseIni.h" />
-    <ClInclude Include="RAII.h" />
     <ClInclude Include="SyncQueue.h" />
   </ItemGroup>
   <ItemGroup>

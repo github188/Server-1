@@ -12,9 +12,6 @@
     <Filter Include="ParseIni">
       <UniqueIdentifier>{afc1e072-1ec8-4144-b47e-4fbee170a850}</UniqueIdentifier>
     </Filter>
-    <Filter Include="RAII">
-      <UniqueIdentifier>{d5d7411b-4e3b-4275-9fec-fbf6a0efe2b3}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">
@@ -36,9 +33,6 @@
     </ClInclude>
     <ClInclude Include="ParseIni.h">
       <Filter>ParseIni</Filter>
-    </ClInclude>
-    <ClInclude Include="RAII.h">
-      <Filter>RAII</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
