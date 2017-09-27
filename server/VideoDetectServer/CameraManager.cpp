@@ -63,12 +63,11 @@ void ITS::CameraManager::getCameraAttributeFromDB(std::vector<CameraAttribute>& 
 		ca.device_id = device_id;
 		ca.ip = device_ip;
 		ca.camera_vender = device_sub_type;
+		ca.port = static_cast<uint16_t>(device_port);
 		if (device_sub_type == KEDA) //keda
-		{
-			ca.port = static_cast<uint16_t>(device_port);
 			if (ca.port == 80)
 				ca.port = 20000;
-		}
+		
 		auto pos = device_lane_number.find_first_of(EXCISION);
 		while (pos != std::string::npos) // has more than one lane
 		{
