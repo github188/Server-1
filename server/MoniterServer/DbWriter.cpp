@@ -5,7 +5,7 @@
 #define OTL_STREAM_POOLING_ON
 #define OTL_ORA_TIMESTAMP
 #include "otlv4_h2/otlv4.h"
-#include "LogMacros.h"
+#include "SyncQueue.h"
 void WwFoundation::DbWriter::start(int number_threads)
 {
 	running_ = true;
@@ -22,7 +22,7 @@ void WwFoundation::DbWriter::runThread()
 	{
 		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
 		auto db_ptr = std::make_shared<otl_connect>();
-	
+
 		unsigned int count = 0;
 		bool need_rlogon = true;
 		while (running_)
@@ -31,8 +31,6 @@ void WwFoundation::DbWriter::runThread()
 			queue_.take(list);
 			for (auto& task : list)
 			{
-				if (!running_)
-					return;
 				while (running_)
 				{
 					try
@@ -43,14 +41,15 @@ void WwFoundation::DbWriter::runThread()
 							need_rlogon = false;
 						}
 						otl_nocommit_stream o1(1, task.c_str(), *db_ptr); //insert one record. if 2 ,insert two same records.....
+						count = count + 1;
 						o1.close(true);
 						break;
 					}
 					catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
 					{
-						MONITERSERVER_ERROR("%s", p.msg);// error message
-						MONITERSERVER_ERROR("%s", p.stm_text);// SQL that caused the error
-						MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
+						printf("%s", p.msg);// error message
+						printf("%s", p.stm_text);// SQL that caused the error
+						printf("%s", p.var_info);//the variable that caused the error
 						if (db_ptr->connected == 1)
 							db_ptr->logoff();
 						std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
@@ -58,7 +57,6 @@ void WwFoundation::DbWriter::runThread()
 					}
 				}	
 			}
-			count = count + list.size();
 			if (count >= commit_size_)
 			{
 				db_ptr->commit();
@@ -69,24 +67,26 @@ void WwFoundation::DbWriter::runThread()
 	}
 	catch (const std::exception& e)
 	{
-		MONITERSERVER_ERROR("%s, DbWriter::runThread exit", e.what());
+		printf("%s, DbWriter::runThread exit", e.what());
 		thread_alive_count_ = thread_alive_count_ - 1;
 	}
 	catch (...)
 	{
-		MONITERSERVER_ERROR("DbWriter::runThread exit with unknown exception!!");
+		printf("DbWriter::runThread exit with unknown exception!!");
 		thread_alive_count_ = thread_alive_count_ - 1;
 	}
 }
 
 void WwFoundation::DbWriter::stop()
 {
-	std::call_once(flag_, [this]() {stopThreadGroup(); });
+	//std::call_once(flag_, [this]() { });
+	stopThreadGroup();
 }
 
 void WwFoundation::DbWriter::stopThreadGroup()
 {
 	queue_.stop();
+	std::this_thread::sleep_for(std::chrono::milliseconds(3000));// for deal the last data in the queue.
 	running_ = false;
 	for (auto thread : thread_group_)
 	{

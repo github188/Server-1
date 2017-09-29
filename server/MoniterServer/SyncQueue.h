@@ -1,7 +1,6 @@
 #pragma once
 #include<list>
 #include<mutex>
-#include<thread>
 #include <condition_variable>
 #include <atomic>
 namespace WwFoundation
@@ -35,8 +34,8 @@ namespace WwFoundation
 			std::unique_lock<std::mutex> locker(mutex_);
 			not_empty_.wait(locker, [this]() {return need_stop_ || notEmpty(); });
 			if (need_stop_)
-				return;
-
+				if (!notEmpty())
+					return;
 			lis = std::move(queue_);
 			not_full_.notify_one();
 		}
@@ -46,7 +45,8 @@ namespace WwFoundation
 			std::unique_lock<std::mutex> locker(mutex_);
 			not_empty_.wait(locker, [this]() {return need_stop_ || notEmpty(); });
 			if (need_stop_)
-				return;
+				if (!notEmpty())
+					return;
 			x = queue_.front();
 			queue_.pop_front();
 			not_full_.notify_one();
@@ -59,7 +59,7 @@ namespace WwFoundation
 			not_empty_.notify_all();
 		}
 
-		bool empty()
+		bool Empty()
 		{
 			std::lock_guard<std::mutex> locker(mutex_);
 			return queue_.empty();
