@@ -31,11 +31,11 @@ namespace ITS
 		}
 	};
 
-	typedef struct jiemaicameraidalarmhandle
+	typedef struct jiemaiuseridalarmhandle
 	{
-		int camera_id;
+		int user_id;
 		int alarm_handle;
-	}JieMaiCameraIdAlarmHandle;
+	}JieMaiUserIdAlarmHandle;
 
 	class JieMai
 	{
@@ -49,14 +49,14 @@ namespace ITS
 
 		std::mutex mtx_;
 		std::unordered_map<JieMaiCameraIpPort, bool, JieMaiCameraIpPortHash> jiemai_camera_need_connect_;
-		std::unordered_map<JieMaiCameraIpPort, JieMaiCameraIdAlarmHandle, JieMaiCameraIpPortHash> jiemai_cameraId_alarmHandle_;
+		std::unordered_map<JieMaiCameraIpPort, JieMaiUserIdAlarmHandle, JieMaiCameraIpPortHash> jiemai_userId_alarmHandle_;
 		std::vector<std::shared_ptr<JieMaiCameraIpPort>> ip_port_for_cb_;
 	public:
 		void initJiemai();
 		int login(const std::string ip, const uint16_t port,
 			const std::string user_name, const std::string password,
-			OS_INT32& camera_id, OS_INT32& alarm_handle);
-		int logout(OS_INT32 camera_id);
+			OS_INT32& user_id, OS_INT32& alarm_handle);
+		int logout(OS_INT32 user_id);
 		int stopJiemai();
 		int closeAlarmChan(const OS_INT32 alarm_handle);
 	private:

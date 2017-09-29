@@ -71,6 +71,7 @@ namespace ITS
 		std::string db_password;
 		std::string deviceTable_name;
 		std::string videoDetectDataTable_name;
+		std::string videoDetectDataTable_name_history;
 		std::string keda_userName;
 		std::string keda_password;
 		std::string jiemai_userName;

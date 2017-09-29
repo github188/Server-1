@@ -22,7 +22,7 @@ void ITS::KeDa::initKeda(int MaxNumConnect)
 	IvhsSetMsgCBFun(cameraMessageCallback);
 }
 
-int ITS::KeDa::connectAndLogin(const std::string& ip, uint16_t port,
+int ITS::KeDa::connectAndPostLoginMessage(const std::string& ip, uint16_t port,
 	const std::string & user_name, const std::string & password, KOSA_HANDLE& dwHandle)
 {
 	auto g_dwHandle = IvhsFwdConnect(inet_addr(ip.c_str()), port);

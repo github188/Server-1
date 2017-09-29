@@ -25,15 +25,15 @@ void ITS::JieMai::initJiemai()
 }
 
 int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::string user_name,
-	const std::string password, OS_INT32 & camera_id, OS_INT32& alarm_handle)
+	const std::string password, OS_INT32 & user_id, OS_INT32& alarm_handle)
 {
-	auto cameraId = NET_DEV_Login(ip.c_str(), port, user_name.c_str(), password.c_str(), NULL);
-	if (cameraId == -1)
+	auto userId = NET_DEV_Login(ip.c_str(), port, user_name.c_str(), password.c_str(), NULL);
+	if (userId == -1)
 	{
 		VIDEODETECTSERVER_ERROR("Login camera(%s:%d) failed:%d", ip.c_str(), port, NET_DEV_GetLastError());
 		return -1;
 	}
-	camera_id = cameraId;
+	user_id = userId;
 
 	std::shared_ptr<JieMaiCameraIpPort> share_ptr;
 	for (auto share_ptr_temp : ip_port_for_cb_)
@@ -52,19 +52,19 @@ int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::str
 	
 	ALARM_CHAN_ARA alarmChan;
 	memset(&alarmChan, 0, sizeof(ALARM_CHAN_ARA));
-	auto AlarmHandle = NET_DEV_SetupAlarmChan(camera_id, &alarmChan, MsgCallback, share_ptr.get());
+	auto AlarmHandle = NET_DEV_SetupAlarmChan(userId, &alarmChan, MsgCallback, share_ptr.get());
 	if (AlarmHandle == -1)
-		VIDEODETECTSERVER_ERROR("SetupAlarmChan(camera_id:%d) failed:%d\n", cameraId, NET_DEV_GetLastError());
+		VIDEODETECTSERVER_ERROR("SetupAlarmChan(userId:%d) failed:%d\n", userId, NET_DEV_GetLastError());
 	alarm_handle = AlarmHandle;
 	return 0;
 }
 
-int ITS::JieMai::logout(OS_INT32 camera_id)
+int ITS::JieMai::logout(OS_INT32 user_id)
 {
-	auto ret = NET_DEV_Logout(camera_id);
+	auto ret = NET_DEV_Logout(user_id);
 	if (ret == OS_FALSE)
 	{
-		VIDEODETECTSERVER_ERROR(" NET_DEV_Logout(camera_id:%d) failed:%d", camera_id, NET_DEV_GetLastError());
+		VIDEODETECTSERVER_ERROR(" NET_DEV_Logout(user_id:%d) failed:%d", user_id, NET_DEV_GetLastError());
 		return -1;
 	}	
 	return 0;
@@ -72,12 +72,12 @@ int ITS::JieMai::logout(OS_INT32 camera_id)
 
 int ITS::JieMai::stopJiemai()
 {
-	for (auto iter : jiemai_cameraId_alarmHandle_)
+	for (auto iter : jiemai_userId_alarmHandle_)
 	{
 		if (iter.second.alarm_handle)
 			closeAlarmChan(iter.second.alarm_handle);
-		if (iter.second.camera_id)
-			logout(iter.second.camera_id);	
+		if (iter.second.user_id)
+			logout(iter.second.user_id);	
 	}
 	auto ret = NET_DEV_Cleanup();
 	if (ret == OS_FALSE)

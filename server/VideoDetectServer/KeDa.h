@@ -46,7 +46,7 @@ namespace ITS
 
 	public:
 		void initKeda(int MaxNumConnect);
-		int connectAndLogin(const std::string& ip, uint16_t port,
+		int connectAndPostLoginMessage(const std::string& ip, uint16_t port,
 			const std::string& user_name, const std::string& password, KOSA_HANDLE& dwHandle);
 		int disconnect(KOSA_HANDLE dwHandle);
 		int stopKeda();
