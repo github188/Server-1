@@ -6,6 +6,7 @@
 #define OTL_ORA_TIMESTAMP
 #include "otlv4_h2/otlv4.h"
 #include "SyncQueue.h"
+#include "LogMacros.h"
 void WwFoundation::DbWriter::start(int number_threads)
 {
 	running_ = true;
@@ -47,9 +48,9 @@ void WwFoundation::DbWriter::runThread()
 					}
 					catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
 					{
-						printf("%s", p.msg);// error message
-						printf("%s", p.stm_text);// SQL that caused the error
-						printf("%s", p.var_info);//the variable that caused the error
+						MONITERSERVER_ERROR("%s", p.msg);// error message
+						MONITERSERVER_ERROR("%s", p.stm_text);// SQL that caused the error
+						MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
 						if (db_ptr->connected == 1)
 							db_ptr->logoff();
 						std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
@@ -67,12 +68,12 @@ void WwFoundation::DbWriter::runThread()
 	}
 	catch (const std::exception& e)
 	{
-		printf("%s, DbWriter::runThread exit", e.what());
+		MONITERSERVER_ERROR("%s, DbWriter::runThread exit", e.what());
 		thread_alive_count_ = thread_alive_count_ - 1;
 	}
 	catch (...)
 	{
-		printf("DbWriter::runThread exit with unknown exception!!");
+		MONITERSERVER_ERROR("DbWriter::runThread exit with unknown exception!!");
 		thread_alive_count_ = thread_alive_count_ - 1;
 	}
 }
