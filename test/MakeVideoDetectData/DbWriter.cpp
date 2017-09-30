@@ -31,8 +31,6 @@ void WwFoundation::DbWriter::runThread()
 			queue_.take(list);
 			for (auto& task : list)
 			{
-				if (!running_)
-					return;
 				while (running_)
 				{
 					try
@@ -43,6 +41,7 @@ void WwFoundation::DbWriter::runThread()
 							need_rlogon = false;
 						}
 						otl_nocommit_stream o1(1, task.c_str(), *db_ptr); //insert one record. if 2 ,insert two same records.....
+						count = count + 1;
 						o1.close(true);
 						break;
 					}
@@ -58,7 +57,6 @@ void WwFoundation::DbWriter::runThread()
 					}
 				}	
 			}
-			count = count + list.size();
 			if (count >= commit_size_)
 			{
 				db_ptr->commit();
@@ -81,12 +79,14 @@ void WwFoundation::DbWriter::runThread()
 
 void WwFoundation::DbWriter::stop()
 {
-	std::call_once(flag_, [this]() {stopThreadGroup(); });
+	//std::call_once(flag_, [this]() { });
+	stopThreadGroup();
 }
 
 void WwFoundation::DbWriter::stopThreadGroup()
 {
 	queue_.stop();
+	std::this_thread::sleep_for(std::chrono::milliseconds(3000));// for deal the last data in the queue.
 	running_ = false;
 	for (auto thread : thread_group_)
 	{

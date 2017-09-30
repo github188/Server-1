@@ -26,13 +26,13 @@ void WwFoundation::ParseIni::parse()
 		else
 		{
 			getPair(strLine, strKey, strValue);
-			addKeyValue(section,strKey, strValue);
+			addKeyValue(section, strKey, strValue);
 		}
 	}
 	in.close();
 }
 
-std::string& WwFoundation::ParseIni::getValue(const std::string section, const std::string key)
+std::string& WwFoundation::ParseIni::getValue(const std::string& section, const std::string& key)
 {
 	return section_keyValue_[section][key];
 }
@@ -54,7 +54,7 @@ std::string & WwFoundation::ParseIni::getSection(std::string & strText)
 	return strText;
 }
 
-void WwFoundation::ParseIni::getPair(const std::string strText, std::string & key, std::string & value)
+void WwFoundation::ParseIni::getPair(const std::string& strText, std::string & key, std::string & value)
 {
 	int pos = strText.find("=");
 	key = strText.substr(0, pos);
@@ -63,7 +63,7 @@ void WwFoundation::ParseIni::getPair(const std::string strText, std::string & ke
 	trim(value);
 }
 
-void WwFoundation::ParseIni::addKeyValue(const std::string section, const std::string key, const std::string value)
+void WwFoundation::ParseIni::addKeyValue(const std::string& section, const std::string& key, const std::string& value)
 {
 	auto iter = section_keyValue_.find(section);
 	if (iter != section_keyValue_.end())
