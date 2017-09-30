@@ -830,9 +830,6 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 		while (run_)
 		{
 			std::vector<DeviceCompareAttribute> device_compare_attribute_temp;
-			std::vector<DeviceCompareAttribute> add_device_temp;
-			std::vector<DeviceCompareAttribute> decrease_device_temp;
-			getMessageFromConfigure(CONFIGURE_DIR);
 			try
 			{
 				if (need_rlogon)
@@ -840,7 +837,8 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 					db.rlogon(message.str().c_str());
 					need_rlogon = false;
 				}
-				getDeviceIpFromDB(device_compare_attribute_temp, db);
+				getMessageFromConfigure(CONFIGURE_DIR);
+				getDeviceIpFromDB(device_compare_attribute_temp, db);	
 			}
 			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
 			{
@@ -854,6 +852,8 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 				need_rlogon = true;
 				continue;
 			}
+			std::vector<DeviceCompareAttribute> add_device_temp;
+			std::vector<DeviceCompareAttribute> decrease_device_temp;
 			auto ret = isDeviceChange(device_compare_attribute_temp, add_device_temp, decrease_device_temp);
 			if (ret)//device changed
 				setDevcieAndLoadBalancing(add_device_temp, decrease_device_temp);
