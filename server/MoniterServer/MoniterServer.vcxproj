@@ -98,7 +98,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/;../../ThirdParty/Mysql/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -113,7 +113,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/;../../ThirdParty/Mysql/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,7 +130,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/;../../ThirdParty/Mysql/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,7 +149,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../ThirdParty/otl/otl/;../../ThirdParty/jsoncpp/include/;../../ThirdParty/otl/oracle/include;../../shared/log/;../../ThirdParty/Mysql/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -181,6 +181,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\ThirdParty\jsoncpp\makefiles\msvc2010\lib_json.vcxproj">
       <Project>{1e6c2c1c-6453-4129-ae3f-0ee8e6599c89}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ThirdParty\Mysql\Mysql.vcxproj">
+      <Project>{3f9088bd-b0dc-442f-afe1-1ae72e2d3056}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\ThirdParty\otl\otl.vcxproj">
       <Project>{2c40327a-d51c-4fd4-aa4c-cfab5a3c8159}</Project>

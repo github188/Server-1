@@ -8,7 +8,7 @@
 #include <string>
 #include "SyncQueue.h"
 
-int const retry_rate = 5000;//ms
+int const retry_rate = 30000;//ms
 namespace WwFoundation
 {
 	class DbWriter

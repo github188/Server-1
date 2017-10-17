@@ -1,0 +1,236 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="头文件\atomic">
+      <UniqueIdentifier>{ac9306d1-4b38-4892-a6b0-ef442c455dc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\mysys">
+      <UniqueIdentifier>{1f0e25b7-1f34-4cd5-8049-b7e0e443e69b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\x86\libmysql.lib">
+      <Filter>源文件</Filter>
+    </Library>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lib\x86\libmysql.dll" />
+    <None Include="include\my_config.h.in">
+      <Filter>头文件</Filter>
+    </None>
+    <None Include="include\mysql.h.pp">
+      <Filter>头文件</Filter>
+    </None>
+    <None Include="include\mysql_version.h.in">
+      <Filter>头文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\base64.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\config-win.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\decimal.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\errmsg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\hash.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\keycache.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lf.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\m_ctype.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\m_string.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_aes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_alarm.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_alloc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_atomic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_attribute.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_base.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_bit.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_bitmap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_charsets.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_dbug.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_dir.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_getopt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_global.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_libwrap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_list.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_md5.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_net.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_no_pthread.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_nosys.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_pthread.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_stacktrace.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_sys.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_time.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_tree.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_trie.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_uctype.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_vle.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\my_xml.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\myisampack.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysql.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysql_com.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysql_time.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysql_version.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysqld_error.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysys_err.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\queues.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\service_versions.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sha1.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sha2.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sql_common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sslopt-case.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sslopt-longopts.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sslopt-vars.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\t_ctype.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\thr_alarm.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\thr_lock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\typelib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\violite.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\waiting_threads.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\wqueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\atomic\gcc_builtins.h">
+      <Filter>头文件\atomic</Filter>
+    </ClInclude>
+    <ClInclude Include="include\atomic\generic-msvc.h">
+      <Filter>头文件\atomic</Filter>
+    </ClInclude>
+    <ClInclude Include="include\atomic\nolock.h">
+      <Filter>头文件\atomic</Filter>
+    </ClInclude>
+    <ClInclude Include="include\atomic\rwlock.h">
+      <Filter>头文件\atomic</Filter>
+    </ClInclude>
+    <ClInclude Include="include\atomic\x86-gcc.h">
+      <Filter>头文件\atomic</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mysys\rijndael.h">
+      <Filter>头文件\mysys</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

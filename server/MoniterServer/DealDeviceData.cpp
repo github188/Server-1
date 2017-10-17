@@ -11,10 +11,40 @@
 #define OTL_ORA_TIMESTAMP
 #include "otlv4_h2/otlv4.h"
 #include "json/json.h"
+#include "mysql.h"
 #include "RAII.h"
 #include "LogMacros.h"
 #include "ParseIni.h"
 #include "DbWriter.h"
+static std::string gbkToUtf8(const std::string& strGBK)
+{
+	int n = MultiByteToWideChar(CP_ACP, 0, strGBK.c_str(), -1, NULL, 0);
+	wchar_t * str1 = new wchar_t[n];
+	MultiByteToWideChar(CP_ACP, 0, strGBK.c_str(), -1, str1, n);
+	n = WideCharToMultiByte(CP_UTF8, 0, str1, -1, NULL, 0, NULL, NULL);
+	char * str2 = new char[n];
+	WideCharToMultiByte(CP_UTF8, 0, str1, -1, str2, n, NULL, NULL);
+	std::string strOutUTF8 = str2;
+	delete[]str1;
+	str1 = nullptr;
+	delete[]str2;
+	str2 = nullptr;
+	return strOutUTF8;
+}
+
+static std::string utf8ToGbk(const std::string& utf8)
+{
+	int len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
+	wchar_t* wstr = new wchar_t[len + 1];
+	MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wstr, len);
+	len = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL);
+	char* str = new char[len + 1];
+	WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
+	std::string strOutGbk = str;
+	delete[] str;
+	delete[] wstr;
+	return strOutGbk;
+}
 
 static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, WPARAM, LPARAM, LPVOID lpClientData)
 {
@@ -75,7 +105,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			device_online_flag[dca] = 1; //recv message OK ,no matter the data is valid or not, the device is onlie
 			 //for deviceTable,insert online/offline
 			std::ostringstream sql;
-			sql << "update " << impl->this_ptr->cm_.deviceTable_name
+			sql << "update " << impl->this_ptr->cm_.deviceTable_name_oracle
 				<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << 1 << "'"
 				<< " where " << Platform::DEVICE_ID << " = " << "'" << dca.deviceId << "'"
 				<< " and " << Platform::DEVICE_IP << " = " << "'" << dca.deviceIp << "'"
@@ -202,7 +232,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		std::ostringstream sql;
 		std::ostringstream sql_value;
 		//insert into devicedata(u_number,upload_time) values('22',to_date('2017-7-13 11:50:12','YYYY-MM-DD HH24:MI:SS'))
-		sql << "insert into " << impl->this_ptr->cm_.deviceDataTable_name << "(" << Platform::DEVICE_ID
+		sql << "insert into " << impl->this_ptr->cm_.deviceDataTable_name_oracle << "(" << Platform::DEVICE_ID
 			<< "," << Platform::DEVICE_UPLOAD_TIME;
 		sql_value << "values (" << "'" << dca.deviceId << "'" << "," << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')";
 
@@ -483,15 +513,16 @@ void Platform::DealDeviceData::init()
 {
 	getMessageFromIniConfigure(INI_CONFIGURE_DIR);
 	std::ostringstream message;
-	message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
-		cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
+	message << cm_.dbUser_name_oracle << "/" << cm_.db_password_oracle << "@" <<
+		cm_.db_ip_oracle << ":" << cm_.db_port_oracle << "/" << cm_.db_name_oracle;
 
 	db_writer_ = std::make_shared<WwFoundation::DbWriter>(1, 2000000, 1, message.str()); //max_sql_count:2000000 nearly 1G ,if each sql 512Byte
 	load_.resize(cm_.load_count);
 	snmp_->init();
 	makeLoadsession();
-	thread_moniter_ = std::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
-	thread_moniter_online_ = std::thread(std::bind(&DealDeviceData::deviceOfflineMonitorThread, this));
+	//thread_moniter_ = std::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
+	//thread_moniter_offline_ = std::thread(std::bind(&DealDeviceData::deviceOfflineMonitorThread, this));
+	thread_monitor_camera_status_ = std::thread(std::bind(&DealDeviceData::cameraStatusMonitorThread, this));
 }
 
 void Platform::DealDeviceData::freeAllResource()
@@ -518,16 +549,24 @@ void Platform::DealDeviceData::getMessageFromIniConfigure(const std::string& dir
 {
 	WwFoundation::ParseIni parser(dir);
 	parser.parse();
-	cm_.dbUser_name = parser.getValue("DbConfig", "DbUserName");
-	cm_.db_ip = parser.getValue("DbConfig", "DbIp");
-	cm_.db_name = parser.getValue("DbConfig", "DbName");
-	cm_.db_password = parser.getValue("DbConfig", "DbPassword");
-	cm_.db_port = parser.getValue("DbConfig", "DbPort");
-	cm_.deviceDataTable_name = parser.getValue("DbConfig", "DeviceDataTableName");
-	cm_.deviceTable_name = parser.getValue("DbConfig", "DeviceTableName");
+	cm_.dbUser_name_oracle = parser.getValue("OracleDbConfig", "DbUserName");
+	cm_.db_ip_oracle = parser.getValue("OracleDbConfig", "DbIp");
+	cm_.db_name_oracle = parser.getValue("OracleDbConfig", "DbName");
+	cm_.db_password_oracle = parser.getValue("OracleDbConfig", "DbPassword");
+	cm_.db_port_oracle = parser.getValue("OracleDbConfig", "DbPort");
+	cm_.deviceDataTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceDataTableName");
+	cm_.deviceTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceTableName");
+	cm_.device_alarmLogTable_name_oracle= parser.getValue("OracleDbConfig", "DeviceAlarmLogTableName");
 	cm_.load_count = std::atoi(parser.getValue("ComConfig", "LoadCount").c_str());
 	cm_.moniter_rate = std::atoi(parser.getValue("ComConfig", "MoniterRate").c_str());
-	cm_.moniter_rate = cm_.moniter_rate >= 30000 ? cm_.moniter_rate : 30000; //snmp delay is nearly 30s
+	//cm_.moniter_rate = cm_.moniter_rate >= 30000 ? cm_.moniter_rate : 30000; //snmp delay is nearly 30s
+
+	cm_.dbUser_name_mysql = parser.getValue("MysqlDbConfig", "DbUserName");
+	cm_.db_ip_mysql = parser.getValue("MysqlDbConfig", "DbIp");
+	cm_.db_name_mysql = parser.getValue("MysqlDbConfig", "DbName");
+	cm_.db_password_mysql = parser.getValue("MysqlDbConfig", "DbPassword");
+	cm_.db_port_mysql = parser.getValue("MysqlDbConfig", "DbPort");
+	cm_.cameraTable_name_mysql = parser.getValue("MysqlDbConfig", "DeviceTableName");
 }
 
 void Platform::DealDeviceData::getMessageFromConfigure(const std::string& dir)
@@ -573,7 +612,7 @@ void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttrib
 	}
 	std::ostringstream message;
 	message << "select " << DEVICE_MODEL << "," << DEVICE_IP << "," << DEVICE_ID << " from "
-		<< cm_.deviceTable_name << " where " << DEVICE_MODEL << " in('";
+		<< cm_.deviceTable_name_oracle << " where " << DEVICE_MODEL << " in('";
 	auto size = device_model_name.size();
 	for (auto i = 0; i < static_cast<int>(size - 1); ++i)
 		message << device_model_name.at(i) << "','";
@@ -747,9 +786,6 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 void Platform::DealDeviceData::makeLoadsession()
 {
 	auto shared_this = shared_from_this();
-	std::ostringstream message;
-	message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
-		cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
 	for (int i = 0; i < cm_.load_count; ++i)
 	{
 		auto impl = std::make_shared<Impl>(Impl());
@@ -823,8 +859,8 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 	{
 		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
 		std::ostringstream message;
-		message << cm_.dbUser_name << "/" << cm_.db_password << "@" <<
-			cm_.db_ip << ":" << cm_.db_port << "/" << cm_.db_name;
+		message << cm_.dbUser_name_oracle << "/" << cm_.db_password_oracle << "@" <<
+			cm_.db_ip_oracle << ":" << cm_.db_port_oracle << "/" << cm_.db_name_oracle;
 
 		bool need_rlogon = true;
 		while (run_)
@@ -838,7 +874,7 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 					need_rlogon = false;
 				}
 				getMessageFromConfigure(CONFIGURE_DIR);
-				getDeviceIpFromDB(device_compare_attribute_temp, db);	
+				getDeviceIpFromDB(device_compare_attribute_temp, db);
 			}
 			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
 			{
@@ -960,19 +996,20 @@ void Platform::DealDeviceData::deviceOfflineMonitorThread() noexcept
 					time << (std::localtime(&t)->tm_year + 1900) << "-" << (std::localtime(&t)->tm_mon + 1) << "-" << std::localtime(&t)->tm_mday
 						<< " " << std::localtime(&t)->tm_hour << ":" << std::localtime(&t)->tm_min << ":" << std::localtime(&t)->tm_sec;
 
+					//for device data table
 					std::ostringstream sql;
-					sql << "insert into " << cm_.deviceDataTable_name << "(" << Platform::DEVICE_ID
+					sql << "insert into " << cm_.deviceDataTable_name_oracle << "(" << Platform::DEVICE_ID
 						<< "," << Platform::DEVICE_UPLOAD_TIME << "," << Platform::DEVICE_STATUS << ")"
 						<< " values (" << "'" << device_online_flag_pair.first.deviceId << "'" << ","
 						<< "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')" << ","
-						<< '0' << ")";
+						<< "'" << DEVICE_OFFLINE <<"'" << ")";
 					db_writer_->addSql(std::move(sql.str()));
 
-					//for deviceTable,insert online/offline
+					//for deviceTable,insert offline
 					sql.clear();
 					sql.str("");
-					sql << "update " << cm_.deviceTable_name
-						<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << 0 << "'"
+					sql << "update " << cm_.deviceTable_name_oracle
+						<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << DEVICE_OFFLINE << "'"
 						<< " where " << Platform::DEVICE_ID << " = " << "'" << device_online_flag_pair.first.deviceId << "'"
 						<< " and " << Platform::DEVICE_IP << " = " << "'" << device_online_flag_pair.first.deviceIp << "'"
 						<< " and " << Platform::DEVICE_MODEL << " = " << "'" << device_online_flag_pair.first.deviceModel << "'";
@@ -991,5 +1028,238 @@ void Platform::DealDeviceData::deviceOfflineMonitorThread() noexcept
 	catch (...)
 	{
 		MONITERSERVER_ERROR("deviceOfflineMonitorThread exit with unknown exception!!");
+	}
+}
+
+void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
+{
+	typedef struct cameraipport
+	{
+		std::string ip;
+		uint16_t port;
+		cameraipport(const std::string& Ip, uint16_t Port) :ip(Ip), port(Port) {}
+		bool operator ==(const cameraipport cip) const
+		{
+			return (ip == cip.ip && port == cip.port);
+		}
+	} CameraIpPort;
+	struct CameraIpPortHash
+	{
+		std::size_t operator()(const CameraIpPort& k) const
+		{
+			auto h1 = std::hash<std::string>()(k.ip);
+			auto h2 = std::hash<uint16_t>()(k.port);
+			return (h2 << 1) ^ (h1 >> 1); // or use boost::hash_combine
+		}
+	};
+	
+	try
+	{
+		otl_connect db;
+		otl_connect::otl_initialize(true); // initialize OCI environment,mutiple thread enable,but not safety
+		std::ostringstream oracle_message;
+		oracle_message << cm_.dbUser_name_oracle << "/" << cm_.db_password_oracle << "@" <<
+			cm_.db_ip_oracle << ":" << cm_.db_port_oracle << "/" << cm_.db_name_oracle;
+
+		std::ostringstream message;
+		message << "select " << DEVICE_IP << "," << DEVICE_PORT <<  " from "
+			<< cm_.deviceTable_name_oracle << " where " << ITS_DEVICE_TYPE << " = " << "'" << CAMERA << "'"
+			<< " and " << DEV_STATUS_NORMAL << " = " << "'" << DEVICE_STATUS_OK << "'";
+		auto oracle_sql = message.str();
+
+		auto t_mysql = mysql_init(nullptr);
+		if (!t_mysql)
+		{
+			std::ostringstream exception_message;
+			exception_message << "mysql_init failed with:" << mysql_error(t_mysql);
+			throw std::runtime_error(exception_message.str());
+		}
+		message.clear();
+		message.str("");
+		message << "select " << CAMERA_IPV4 << "," << CAMERA_PORT << "," << CAMERA_STATUS_CODE
+			<< " from " << cm_.cameraTable_name_mysql;
+		auto mysql_sql = message.str();
+
+		bool need_rlogon_oracle = true;
+		bool need_rlogon_mysql = true;
+		MYSQL *connect = nullptr;
+		std::unordered_map<CameraIpPort, std::string, CameraIpPortHash> camera_status_code_last;
+		while (run_)
+		{
+			std::vector<CameraIpPort> its_device_camera_ip_port;
+			std::ostringstream update_sql;
+			std::ostringstream insert_sql;
+			try
+			{
+				if (need_rlogon_oracle)
+				{
+					db.rlogon(oracle_message.str().c_str());
+					need_rlogon_oracle = false;
+				}
+				otl_stream o(50, oracle_sql.c_str(), db);//otl_stream just for select, else use otl_nocommit_stream, since select do not need to commit
+				std::string device_ip, device_code = "";
+				int device_port = 0;
+				while (!o.eof())
+				{
+					o >> device_ip >> device_port;
+					CameraIpPort ip_port{ "",0 };
+					ip_port.ip = device_ip;
+					ip_port.port = static_cast<uint16_t>(device_port);
+					its_device_camera_ip_port.emplace_back(ip_port);
+				}
+				o.close(true); //reuse this stream 
+			}
+			catch (otl_exception& p)// intercept OTL exceptions. ex:ORA-12543: TNS:destination host unreachable
+			{
+				MONITERSERVER_ERROR("%s", p.msg);//error message
+				MONITERSERVER_ERROR("%s", p.stm_text);//SQL that caused the error
+				MONITERSERVER_ERROR("%s", p.var_info);//the variable that caused the error
+				if (db.connected == 1)
+					db.logoff();
+				std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
+				need_rlogon_oracle = true;
+				continue;
+			}
+		
+			while (run_)
+			{
+				if (need_rlogon_mysql)
+				{
+					connect = mysql_real_connect(t_mysql, cm_.db_ip_mysql.c_str(), cm_.dbUser_name_mysql.c_str(),
+						cm_.db_password_mysql.c_str(), cm_.db_name_mysql.c_str(), std::atoi(cm_.db_port_mysql.c_str()), NULL, 0);
+					if (!connect)
+					{
+						MONITERSERVER_ERROR("mysql_real_connect failed :%s", mysql_error(connect));
+						continue;
+					}
+					need_rlogon_mysql = false;
+				}
+				auto ret = mysql_real_query(connect, mysql_sql.c_str(), mysql_sql.length());
+				if (ret)
+				{
+					MONITERSERVER_ERROR("mysql_real_query failed:%s", mysql_error(connect));
+					mysql_close(connect);
+					need_rlogon_mysql = true;
+					continue;
+				}
+				auto mysql_result = mysql_store_result(connect);
+				auto num_row = mysql_num_rows(mysql_result);
+				auto num_col = mysql_num_fields(mysql_result);
+				if (num_col == 3)
+				{
+					auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+					std::ostringstream time;
+					time << (std::localtime(&t)->tm_year + 1900) << "-" << (std::localtime(&t)->tm_mon + 1) << "-" << std::localtime(&t)->tm_mday
+						<< " " << std::localtime(&t)->tm_hour << ":" << std::localtime(&t)->tm_min << ":" << std::localtime(&t)->tm_sec;
+
+					std::unordered_map<CameraIpPort, std::string, CameraIpPortHash> camera_status_code_this;
+					for (int i = 0; i < num_row; ++i)
+					{
+						update_sql.clear();
+						update_sql.str("");
+						auto mysql_row = mysql_fetch_row(mysql_result); //mysql_row[0]--ip, mysql_row[1]--port,mysql_row[2]--status_code
+						camera_status_code_this.emplace(CameraIpPort(mysql_row[0], static_cast<uint16_t>(std::atoi(mysql_row[1]))), mysql_row[2]);
+						if (mysql_row[2]== CAMERA_OFFLINE) //camera offline
+						{
+							update_sql << "update " << cm_.deviceTable_name_oracle << " set " << DEVICE_WORK_STATUS
+								<< " = " << "'" << DEVICE_OFFLINE << "'" << " where "
+								<< DEVICE_IP << " = " << "'" << mysql_row[0] << "'"
+								<< " and " << DEVICE_PORT << " = " << "'" << mysql_row[1] << "'";
+							db_writer_->addSql(update_sql.str());
+						}
+						else if (mysql_row[2]== CAMERA_ONLINE) //camera online
+						{
+							update_sql << "update " << cm_.deviceTable_name_oracle << " set " << DEVICE_WORK_STATUS
+								<< " = " << "'" << DEVICE_ONLINE << "'" << " where "
+								<< DEVICE_IP << " = " << "'" << mysql_row[0] << "'"
+								<< " and " << DEVICE_PORT << " = " << "'" << mysql_row[1] << "'";
+							db_writer_->addSql(update_sql.str());
+						}
+						else //camera record video now ,must be online
+						{
+							update_sql << "update " << cm_.deviceTable_name_oracle << " set " << DEVICE_WORK_STATUS
+								<< " = " << "'" << CAMERA_ON_VIDEO << "'" << " where "
+								<< DEVICE_IP << " = " << "'" << mysql_row[0] << "'"
+								<< " and " << DEVICE_PORT << " = " << "'" << mysql_row[1] << "'";
+							db_writer_->addSql(update_sql.str());
+						}
+					}
+					//compare
+					for (auto iter_this = camera_status_code_this.begin(); iter_this != camera_status_code_this.end(); ++iter_this)
+					{
+						auto iter_last = std::find(camera_status_code_last.begin(), camera_status_code_last.end(), *iter_this);
+						if (iter_last != camera_status_code_last.end()) //both has, no change
+							camera_status_code_last.erase(iter_last);
+						else //maybe new camera or maybe status changed
+						{
+							auto iter = std::find(its_device_camera_ip_port.begin(), its_device_camera_ip_port.end(), iter_this->first);
+							if (iter != its_device_camera_ip_port.end()) // oracle its_device has this camera, record alarm log
+							{
+								insert_sql.clear();
+								insert_sql.str("");
+								insert_sql << "insert into " << cm_.device_alarmLogTable_name_oracle << "(" << ALARM_TIME
+									<< "," << ALARM_DEAL_STATUS << "," << ALARM_TYPE << "," << ALARM_LEVEL
+									<< "," << ALARM_DETAIL << ")"
+									<< " values(" << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')"
+									<< "," << "'" << ALARM_DEAL_STATUS_NO_DEAL << "'";
+								if (iter_this->second == CAMERA_OFFLINE) //camera turn offline
+								{
+									std::string alarm_detail = "摄相机断线";
+									auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+									insert_sql << "," << "'" << ALARM_TYPE_OFFLINE << "'"
+										<< "," << "'" << ALARM_LEVEL_FATAL << "'"
+										<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
+										<< " " << alarm_detail_utf8 << "'" << ")";
+									db_writer_->addSql(insert_sql.str());
+								}
+								else //camera online （maybe turn online or maybe always online ）
+								{
+									auto iter_last1 = camera_status_code_last.find(CameraIpPort(iter_this->first.ip, iter_this->first.port));
+									if (iter_last1 != camera_status_code_last.end()) //find ,means status changed
+									{
+										if (iter_last1->second == CAMERA_OFFLINE)// last time offline
+										{
+											std::string alarm_detail = "摄相机在线";
+											auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+											insert_sql << "," << "'" << ALARM_TYPE_ONLINE << "'"
+												<< "," << "'" << ALARM_LEVEL_ORDINARY << "'"
+												<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
+												<< " " << alarm_detail_utf8 << "'" << ")";
+											db_writer_->addSql(insert_sql.str());
+										}
+									}
+									else // not find ,means new camera
+									{
+										std::string alarm_detail = "摄相机在线";
+										auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+										insert_sql << "," << "'" << ALARM_TYPE_ONLINE << "'"
+											<< "," << "'" << ALARM_LEVEL_ORDINARY << "'"
+											<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
+											<< " " << alarm_detail_utf8 << "'" << ")";
+										db_writer_->addSql(insert_sql.str());
+									}
+								}
+							}
+							else
+								MONITERSERVER_WARN("camera(%s:%d) status_code:%s is not in its_device,do not record alarm log", iter_this->first.ip.c_str(), iter_this->first.port, iter_this->second.c_str());
+						}
+					}
+					camera_status_code_last = camera_status_code_this;//change last status
+				}
+				else
+					MONITERSERVER_WARN("get %d colnums data from mysql rather than 3 colnums", num_col);
+				mysql_free_result(mysql_result);
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(cm_.moniter_rate));
+		}
+	}
+	catch (const std::exception& e)
+	{
+		MONITERSERVER_ERROR("%s, cameraStatusMonitorThread exit", e.what());
+	}
+	catch (...)
+	{
+		MONITERSERVER_ERROR("cameraStatusMonitorThread exit with unknown exception!!");
 	}
 }

@@ -19,15 +19,7 @@ namespace Platform
 	const int SEND_OID_COUNT = 30;
 	const std::string CONFIGURE_DIR = "type_oid.json";
 	const std::string INI_CONFIGURE_DIR = "MoniterServer.ini";
-	//const int LOAD_COUNT =2;
-	//const int MONITOR_RATE = 30000;//ms
-	/*const std::string DEVICE_TABLE = "ITS_DEVICE";
-	const std::string DEVICE_DATA_TABLE = "ITS_RUN_STATE";
-	const std::string DB_MESSAGE = "sde/111111@192.168.1.157:1521/testorcl";*/
-	//const std::string DEVICE_TABLE = "DEVICE";
-	//const std::string DEVICE_DATA_TABLE = "DEVICEdata";
-	//const std::string DB_MESSAGE = "wangwei/111111@192.168.1.192:1521/abcdef"; 
-
+	//device data table
 	const std::string DEVICE_MODEL = "model";
 	const std::string DEVICE_IP = "ip";
 	const std::string DEVICE_ID = "u_number";
@@ -41,18 +33,59 @@ namespace Platform
 	const std::string DEVICE_SYSTEM_DESCRIPTION = "system_desc";
 	const std::string DEVICE_REMARK = "remark";
 	const std::string DEVICE_STATUS = "state";
+	//another table(deviceTable)
+	const std::string CAMERA = "51";
+	const std::string DEVICE_STATUS_OK = "101";
 	const std::string DEV_STATUS_NORMAL = "asset_status";
-	const std::string DEVICE_WORK_STATUS = "work_status"; //another table(deviceTable)
+	const std::string DEVICE_WORK_STATUS = "work_status";
+	const std::string DEVICE_CODE = "device_code";
+	const std::string DEVICE_PORT = "port";
+	const std::string ITS_DEVICE_TYPE = "type";  //because  DEVICE_TYPE is defined in the fucking win
+	const std::string DEVICE_ONLINE = "1";
+	const std::string DEVICE_OFFLINE = "0";
+	const std::string CAMERA_ON_VIDEO = "2"; //must be online
+	//alarm log table
+	const std::string ALARM_TYPE_ONLINE = "1151";
+	const std::string ALARM_TYPE_PARAMETER_OK = "1152";
+	const std::string ALARM_TYPE_PARAMETER_ABNORMAL = "1153";
+	const std::string ALARM_TYPE_OFFLINE = "1154";
+	const std::string ALARM_LEVEL_FATAL = "1201";
+	const std::string ALARM_LEVEL_SERIOUS = "1202";
+	const std::string ALARM_LEVEL_ALARM = "1203";
+	const std::string ALARM_LEVEL_ORDINARY = "1204";
+	const std::string ALARM_DEAL_STATUS_NO_DEAL = "0";
+	const std::string ALARM_DEAL_STATUS_WITH_DEAL = "1";
+	const std::string ALARM_TYPE = "alarm_type"; // 1151-device online ,1152-device parameter ok,1153-device parameter abnormal,1154-device offline
+	const std::string ALARM_TIME = "alarm_time";
+	const std::string ALARM_LEVEL = "alarm_level";//1201-fatal(1154),1202-serious(device parameter become maximum),1203-alarm(device parameter over threshold).1204-ordinary(1151,1152)
+	const std::string ALARM_DETAIL = "alarm_detail";
+	const std::string ALARM_ADDTIONAL = "alarm_addtional";
+	const std::string ALARM_DEAL_STATUS = "alarm_deal_status";// 0- no deal ,1- with deal
+	//another db(ivp:platform -camera)
+	const std::string CAMERA_STATUS_CODE = "StatusCode";
+	const std::string CAMERA_IPV4 = "IPv4";
+	const std::string CAMERA_PORT = "Port";
+	const std::string CAMERA_OFFLINE = "1";
+	const std::string CAMERA_ONLINE = "3";
 	
 	typedef struct configmessage
 	{
-		std::string dbUser_name;
-		std::string db_ip;
-		std::string db_port;
-		std::string db_name;
-		std::string db_password;
-		std::string deviceTable_name;
-		std::string deviceDataTable_name;
+		std::string dbUser_name_oracle;
+		std::string db_ip_oracle;
+		std::string db_port_oracle;
+		std::string db_name_oracle;
+		std::string db_password_oracle;
+		std::string deviceTable_name_oracle;
+		std::string device_alarmLogTable_name_oracle;
+		std::string deviceDataTable_name_oracle;
+		std::string dbUser_name_mysql;
+		std::string db_ip_mysql;
+		std::string db_port_mysql;
+		std::string db_name_mysql;
+		std::string db_password_mysql;
+		std::string cameraTable_name_mysql;
+
+		std::string snmp_community;
 		int load_count;
 		int moniter_rate;//ms
 	}ConfigMessage;
@@ -137,14 +170,15 @@ namespace Platform
 		int device_count_;
 		std::shared_ptr<Snmp> snmp_;
 		std::thread thread_moniter_;
-		std::thread thread_moniter_online_;
+		std::thread thread_moniter_offline_;
+		std::thread thread_monitor_camera_status_;
 		std::vector<std::shared_ptr<Impl>> impl_;
 		std::shared_ptr<WwFoundation::DbWriter> db_writer_;
 		std::vector<DeviceCompareAttribute> device_compare_attribute_;
 		std::vector<std::shared_ptr<std::vector<DeviceAttribute>>> load_; //every load has some devices
 		std::unordered_map<std::string, std::unordered_map<std::string, std::string>> model_oid_; //every model has a group of oids
 		std::unordered_map<DeviceCompareAttribute, bool, DeviceCompareAttributeHash> is_oid_whole_;// since a group of oids too big, must split send request. Makesure get all request,or do not deal this missing device data
-		std::unordered_map<DeviceCompareAttribute, int, DeviceCompareAttributeHash> device_online_flag_;// oneline=1, offline=0
+		std::unordered_map<DeviceCompareAttribute, int, DeviceCompareAttributeHash> device_online_flag_;// online=1, offline=0
 		std::unordered_map<std::shared_ptr<std::vector<DeviceAttribute>>, void*, load_session::Hash> load_session_; //every load has a session which be bound to a system thread
 		std::unordered_map<DeviceCompareAttribute, std::vector<PortFlow>, DeviceCompareAttributeHash> device_port_flow_;//one or several port flow, the data be put into struct PortFlow	
 		std::unordered_map<DeviceCompareAttribute, std::map<std::string,std::any>, DeviceCompareAttributeHash> device_data_;//the data return by snmp request
@@ -182,6 +216,7 @@ namespace Platform
 			void* manager_entity, void* agent_entity, void* pdu);
 		void deviceMonitorThread() noexcept;
 		void deviceOfflineMonitorThread() noexcept;
+		void cameraStatusMonitorThread() noexcept;
 	};
 }
 #endif

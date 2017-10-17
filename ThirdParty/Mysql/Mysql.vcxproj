@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{3F9088BD-B0DC-442F-AFE1-1AE72E2D3056}</ProjectGuid>
+    <RootNamespace>Mysql</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)_bin_$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)_bin_$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)_bin_$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)_bin_$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y /A /D $(ProjectDir)lib\x86\*dll $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y /A /D $(ProjectDir)lib\x86\*dll $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /A /D $(ProjectDir)lib\x86\*dll $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /A /D $(ProjectDir)lib\x86\*dll $(SolutionDir)_bin_$(Platform)\$(Configuration)\</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Library Include="lib\x86\libmysql.lib" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="include\mysql.h.pp" />
+    <None Include="include\mysql_version.h.in" />
+    <None Include="include\my_config.h.in" />
+    <None Include="lib\x86\libmysql.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\atomic\gcc_builtins.h" />
+    <ClInclude Include="include\atomic\generic-msvc.h" />
+    <ClInclude Include="include\atomic\nolock.h" />
+    <ClInclude Include="include\atomic\rwlock.h" />
+    <ClInclude Include="include\atomic\x86-gcc.h" />
+    <ClInclude Include="include\base64.h" />
+    <ClInclude Include="include\config-win.h" />
+    <ClInclude Include="include\decimal.h" />
+    <ClInclude Include="include\errmsg.h" />
+    <ClInclude Include="include\hash.h" />
+    <ClInclude Include="include\keycache.h" />
+    <ClInclude Include="include\lf.h" />
+    <ClInclude Include="include\myisampack.h" />
+    <ClInclude Include="include\mysql.h" />
+    <ClInclude Include="include\mysqld_error.h" />
+    <ClInclude Include="include\mysql_com.h" />
+    <ClInclude Include="include\mysql_time.h" />
+    <ClInclude Include="include\mysql_version.h" />
+    <ClInclude Include="include\mysys\rijndael.h" />
+    <ClInclude Include="include\mysys_err.h" />
+    <ClInclude Include="include\my_aes.h" />
+    <ClInclude Include="include\my_alarm.h" />
+    <ClInclude Include="include\my_alloc.h" />
+    <ClInclude Include="include\my_atomic.h" />
+    <ClInclude Include="include\my_attribute.h" />
+    <ClInclude Include="include\my_base.h" />
+    <ClInclude Include="include\my_bit.h" />
+    <ClInclude Include="include\my_bitmap.h" />
+    <ClInclude Include="include\my_charsets.h" />
+    <ClInclude Include="include\my_config.h" />
+    <ClInclude Include="include\my_dbug.h" />
+    <ClInclude Include="include\my_dir.h" />
+    <ClInclude Include="include\my_getopt.h" />
+    <ClInclude Include="include\my_global.h" />
+    <ClInclude Include="include\my_libwrap.h" />
+    <ClInclude Include="include\my_list.h" />
+    <ClInclude Include="include\my_md5.h" />
+    <ClInclude Include="include\my_net.h" />
+    <ClInclude Include="include\my_nosys.h" />
+    <ClInclude Include="include\my_no_pthread.h" />
+    <ClInclude Include="include\my_pthread.h" />
+    <ClInclude Include="include\my_stacktrace.h" />
+    <ClInclude Include="include\my_sys.h" />
+    <ClInclude Include="include\my_time.h" />
+    <ClInclude Include="include\my_tree.h" />
+    <ClInclude Include="include\my_trie.h" />
+    <ClInclude Include="include\my_uctype.h" />
+    <ClInclude Include="include\my_vle.h" />
+    <ClInclude Include="include\my_xml.h" />
+    <ClInclude Include="include\m_ctype.h" />
+    <ClInclude Include="include\m_string.h" />
+    <ClInclude Include="include\queues.h" />
+    <ClInclude Include="include\service_versions.h" />
+    <ClInclude Include="include\sha1.h" />
+    <ClInclude Include="include\sha2.h" />
+    <ClInclude Include="include\sql_common.h" />
+    <ClInclude Include="include\sslopt-case.h" />
+    <ClInclude Include="include\sslopt-longopts.h" />
+    <ClInclude Include="include\sslopt-vars.h" />
+    <ClInclude Include="include\thr_alarm.h" />
+    <ClInclude Include="include\thr_lock.h" />
+    <ClInclude Include="include\typelib.h" />
+    <ClInclude Include="include\t_ctype.h" />
+    <ClInclude Include="include\violite.h" />
+    <ClInclude Include="include\waiting_threads.h" />
+    <ClInclude Include="include\wqueue.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -9,6 +9,12 @@ int main()
 	{
 		glog_init("MoniterServer");
 		MONITERSERVER_INFO("%s", "MoniterServer start");
+		auto ret = SetEnvironmentVariable(L"NLS_LANG", L"SIMPLIFIED CHINESE_CHINA.AL32UTF8"); // make client character set as same as db server
+		if (!ret)
+		{
+			MONITERSERVER_ERROR("SetEnvironmentVariable:%d", GetLastError());
+			return -1;
+		}	
 		ptr->init();
 		while (true)
 		{
