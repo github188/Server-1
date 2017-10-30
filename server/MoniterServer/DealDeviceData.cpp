@@ -32,19 +32,19 @@ static std::string gbkToUtf8(const std::string& strGBK)
 	return strOutUTF8;
 }
 
-static std::string utf8ToGbk(const std::string& utf8)
-{
-	int len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
-	wchar_t* wstr = new wchar_t[len + 1];
-	MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wstr, len);
-	len = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL);
-	char* str = new char[len + 1];
-	WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
-	std::string strOutGbk = str;
-	delete[] str;
-	delete[] wstr;
-	return strOutGbk;
-}
+//static std::string utf8ToGbk(const std::string& utf8)
+//{
+//	int len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
+//	wchar_t* wstr = new wchar_t[len + 1];
+//	MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wstr, len);
+//	len = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL);
+//	char* str = new char[len + 1];
+//	WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
+//	std::string strOutGbk = str;
+//	delete[] str;
+//	delete[] wstr;
+//	return strOutGbk;
+//}
 
 static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, WPARAM, LPARAM, LPVOID lpClientData)
 {
@@ -59,11 +59,9 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 
 	/*std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();*/
-
 	auto impl = static_cast<Platform::Impl*>(lpClientData);
 	bool all_get = false;
 	Platform::DeviceCompareAttribute dca;
-
 	auto getDeviceData = [&impl, &all_get, &hSession, &dca]()->int
 	{
 		auto db_write = impl->this_ptr->getDbWriterPtr();
@@ -103,10 +101,10 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			}
 
 			device_online_flag[dca] = 1; //recv message OK ,no matter the data is valid or not, the device is onlie
-			 //for deviceTable,insert online/offline
+			 //for deviceTable,insert online
 			std::ostringstream sql;
 			sql << "update " << impl->this_ptr->cm_.deviceTable_name_oracle
-				<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << 1 << "'"
+				<< " set " << Platform::DEVICE_WORK_STATUS << " = " << "'" << Platform::DEVICE_ONLINE << "'"
 				<< " where " << Platform::DEVICE_ID << " = " << "'" << dca.deviceId << "'"
 				<< " and " << Platform::DEVICE_IP << " = " << "'" << dca.deviceIp << "'"
 				<< " and " << Platform::DEVICE_MODEL << " = " << "'" << dca.deviceModel << "'";
@@ -210,7 +208,7 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		}
 		catch (const std::exception& e)
 		{
-			auto& device_port_flow = impl->this_ptr->getPortflow();
+			auto& device_port_flow = impl->this_ptr->getPortflowLast();
 			MONITERSERVER_ERROR("%s, get device data failed, device id(%s),ip(%s) ", e.what(), dca.deviceId.c_str(), dca.deviceIp.c_str());
 			device_data[dca].clear();
 			device_port_flow[dca].clear();
@@ -221,10 +219,6 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 	};
 	auto writeToDB = [&impl, &dca]()
 	{
-		auto db_write = impl->this_ptr->getDbWriterPtr();
-		auto &device_port_flow = impl->this_ptr->getPortflow();
-		auto &device_data = impl->this_ptr->getDeviceData();
-
 		auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 		std::ostringstream time;
 		time << (std::localtime(&t)->tm_year + 1900) << "-" << (std::localtime(&t)->tm_mon + 1) << "-" << std::localtime(&t)->tm_mday
@@ -235,131 +229,115 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 		sql << "insert into " << impl->this_ptr->cm_.deviceDataTable_name_oracle << "(" << Platform::DEVICE_ID
 			<< "," << Platform::DEVICE_UPLOAD_TIME;
 		sql_value << "values (" << "'" << dca.deviceId << "'" << "," << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')";
+		std::ostringstream alarm_sql_same;
+		alarm_sql_same << "insert into " << impl->this_ptr->cm_.device_alarmLogTable_name_oracle
+			<< "(" << Platform::ALARM_TIME << "," << Platform::ALARM_DEAL_STATUS
+			<< "," << Platform::ALARM_TYPE << "," << Platform::ALARM_LEVEL
+			<< "," << Platform::ALARM_DETAIL << ")"
+			<< " values(" << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')";
 
+		auto &result_data_last = impl->this_ptr->getResultDataLast();
+		auto db_write = impl->this_ptr->getDbWriterPtr();
+		typedef std::function<void(const std::string&, const std::string&)> AlarmLevelFun;
+		auto alarm_log = [&dca, &result_data_last](const float parameter_value_now, int threshold_value,
+			const std::string& key_name, const std::string&parameter_name,
+			const AlarmLevelFun&ordinary, const std::string&ordinary_detail,
+			const AlarmLevelFun&abnormal, const std::string&abnormal_detail,
+			const AlarmLevelFun&serious, const std::string&serious_detail)
+		{
+			auto iter_last = result_data_last[dca].find(key_name);
+			if (iter_last != result_data_last[dca].end())
+			{
+				auto value_last = result_data_last[dca][key_name];
+				if (parameter_value_now < threshold_value) //status ok
+				{
+					if (value_last >= threshold_value) //ALARM status or SERIOUS status
+						ordinary(parameter_name, ordinary_detail);
+				}
+				else if (parameter_value_now < 100) //ALARM status
+				{
+					if (value_last < threshold_value || value_last >= 100) //ok status or SERIOUS status
+						abnormal(parameter_name, abnormal_detail);
+				}
+				else //SERIOUS status, >=100
+					if (value_last < 100) //ok status or ALARM status
+						serious(parameter_name, serious_detail);
+			}
+			else //no cpu found in device_data_last. Then must be first time(the program start-up)
+			{
+				if (parameter_value_now < threshold_value) //cpu status ok
+					ordinary(parameter_name, ordinary_detail);
+				else if (parameter_value_now < 100) //ALARM status
+					abnormal(parameter_name, abnormal_detail);
+				else //SERIOUS status, =100
+					serious(parameter_name, serious_detail);
+			}
+			result_data_last[dca][key_name] = static_cast<float>(parameter_value_now);
+		};
+		auto alarm_ordinary = [&alarm_sql_same, &dca, &db_write](const std::string&parameter_name,
+			const std::string&parameter_detail)
+		{
+			std::ostringstream alarm_sql;
+			std::string alarm_detail = " 设备";
+			alarm_detail.append(parameter_name).append(parameter_detail);
+			auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+			alarm_sql << alarm_sql_same.str() << "," << "'" << Platform::ALARM_DEAL_STATUS_WITH_DEAL << "'"
+				<< "," << "'" << Platform::ALARM_TYPE_PARAMETER_OK << "'"
+				<< "," << "'" << Platform::ALARM_LEVEL_ORDINARY << "'"
+				<< "," << "'" << dca.deviceIp << alarm_detail_utf8 << "'" << ")";
+			db_write->addSql(alarm_sql.str());
+		};
+		auto alarm_abnormal = [&alarm_sql_same, &dca, &db_write](const std::string&parameter_name,
+			const std::string&parameter_detail)
+		{
+			std::ostringstream alarm_sql;
+			std::string alarm_detail = " 设备";
+			alarm_detail.append(parameter_name).append(parameter_detail);
+			auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+			alarm_sql << alarm_sql_same.str() << "," << "'" << Platform::ALARM_DEAL_STATUS_NO_DEAL << "'"
+				<< "," << "'" << Platform::ALARM_TYPE_PARAMETER_ABNORMAL << "'"
+				<< "," << "'" << Platform::ALARM_LEVEL_ALARM << "'"
+				<< "," << "'" << dca.deviceIp << alarm_detail_utf8 << "'" << ")";
+			db_write->addSql(alarm_sql.str());
+		};
+		auto alarm_serious = [&alarm_sql_same, &dca, &db_write](const std::string&parameter_name,
+			const std::string&parameter_detail)
+		{
+			std::ostringstream alarm_sql;
+			std::string alarm_detail = " 设备";
+			alarm_detail.append(parameter_name).append(parameter_detail);
+			auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
+			alarm_sql << alarm_sql_same.str() << "," << "'" << Platform::ALARM_DEAL_STATUS_NO_DEAL << "'"
+				<< "," << "'" << Platform::ALARM_TYPE_PARAMETER_ABNORMAL << "'"
+				<< "," << "'" << Platform::ALARM_LEVEL_SERIOUS << "'"
+				<< "," << "'" << dca.deviceIp << alarm_detail_utf8 << "'" << ")";
+			db_write->addSql(alarm_sql.str());
+		};
+
+		auto &device_data = impl->this_ptr->getDeviceData();
 		auto iter_sys_desc = device_data[dca].find("sysDesc");
 		if (iter_sys_desc != device_data[dca].end()) // has system_desc
 		{
 			sql << "," << Platform::DEVICE_SYSTEM_DESCRIPTION;
 			sql_value << "," << "'" << (std::any_cast<std::string>(iter_sys_desc->second)) << "'";
-			device_data[dca].erase(iter_sys_desc); //remove this element
 		}
 
-		auto iter_cpu = device_data[dca].find("cpu");
-		if (iter_cpu != device_data[dca].end())//just has single cpu
+		auto iter_temperature = device_data[dca].find("temperature");
+		if (iter_temperature != device_data[dca].end())// has temperature
 		{
-			sql << "," << Platform::DEVICE_CPU_RATE;
-			sql_value << "," << "'" << std::any_cast<uint64_t>(iter_cpu->second) << "'";
-			device_data[dca].erase(iter_cpu); //remove this element
-		}
-		else // has several cpus or no cpu
-		{
-			bool exit_loop = false;
-			auto iter_cpu1 = device_data[dca].find("cpu1");
-			if (iter_cpu1 != device_data[dca].end()) // has several cpus
-			{
-				uint64_t cpu_rate_all = 0;
-				int cpu_count = 0;
-				for (auto iter = device_data[dca].begin(); iter != device_data[dca].end();)
-				{
-					auto pos = (iter->first).find("cpu");
-					if (pos != std::string::npos) //find one like cpux(x=1 or 2 or 3.......)
-					{
-						exit_loop = true; //since sort , once goto else branch,then no cpux exit
-						cpu_rate_all = cpu_rate_all + std::any_cast<uint64_t>(iter->second);
-						++cpu_count;
-						iter = device_data[dca].erase(iter); //remove this element
-					}
-					else
-					{
-						if (exit_loop)
-							break;
-						++iter;
-					}
-				}
-				auto cpu_use_rate = cpu_rate_all *(float)1.0 / cpu_count;
-				sql << "," << Platform::DEVICE_CPU_RATE;
-				sql_value << "," << "'" << cpu_use_rate << "'";
-			}
-		}
-
-		auto iter_diskTotal = device_data[dca].find("diskTotal");
-		if (iter_diskTotal != device_data[dca].end()) //just has single disk
-		{
-			auto diskTotal = std::any_cast<uint64_t>(iter_diskTotal->second);
-			device_data[dca].erase(iter_diskTotal); //remove this element
-			auto iter_diskUsed = device_data[dca].find("diskUsed");
-			if (iter_diskUsed != device_data[dca].end())
-			{
-				auto diskUsed = std::any_cast<uint64_t>(iter_diskUsed->second);
-				device_data[dca].erase(iter_diskUsed); //remove this element
-				if (diskTotal != 0)
-				{
-					auto disk_use_rate = diskUsed * 100 / diskTotal;
-					sql << "," << Platform::DEVICE_DISK_RATE;
-					sql_value << "," << "'" << disk_use_rate << "'";
-				}
-				else
-					MONITERSERVER_WARN("device(%s) has single disk,but diskTotal is 0, so do not insert disk_use_rate", dca.deviceIp.c_str());
-			}
-		}
-		else //has several disks or no disk
-		{
-			uint64_t diskTotal_all = 0;
-			uint64_t diskUsed_all = 0;
-			bool exit_loop = false;
-			bool any_diskTotal_isZero = false;
-
-			auto iter_diskTotal1 = device_data[dca].find("diskTotal1");
-			if (iter_diskTotal1 != device_data[dca].end()) // has several disks
-			{
-				for (auto iter = device_data[dca].begin(); iter != device_data[dca].end();)
-				{
-					auto pos = (iter->first).find("diskTotal");
-					auto pos1 = (iter->first).find("diskUsed");
-					if (pos != std::string::npos || pos1 != std::string::npos)
-					{
-						exit_loop = true; //since sort , once goto else branch,then no diskTotalx or diskUsedx exit
-						if (pos != std::string::npos)//find one like diskTotalx(x=1 or 2 or 3.......)
-						{
-							//diskTotal.emplace_back(std::any_cast<uint64_t>(iter->second));
-							auto diskTotal_temp = std::any_cast<uint64_t>(iter->second);
-							if (diskTotal_temp != 0)
-								diskTotal_all = diskTotal_all + std::any_cast<uint64_t>(iter->second);
-							else
-							{
-								any_diskTotal_isZero = true;
-								MONITERSERVER_WARN("device(%s) one diskTotal is 0, so do not insert disk_use_rate", dca.deviceIp.c_str());
-							}
-							iter = device_data[dca].erase(iter);
-						}
-						else //find one like diskUsedx(x=1 or 2 or 3.......)
-						{
-							//diskUsed.emplace_back(std::any_cast<uint64_t>(iter->second));
-							diskUsed_all = diskUsed_all + std::any_cast<uint64_t>(iter->second);
-							iter = device_data[dca].erase(iter);
-						}
-					}
-					else
-					{
-						if (exit_loop)
-							break;
-						++iter;
-					}
-				}
-				if (!any_diskTotal_isZero)
-				{
-					auto disk_use_rate = diskUsed_all * (float)100.0 / diskTotal_all;
-					sql << "," << Platform::DEVICE_DISK_RATE;
-					sql_value << "," << "'" << disk_use_rate << "'";
-				}
-			}
+			auto temperature = std::any_cast<uint64_t>(iter_temperature->second);
+			alarm_log(static_cast<float>(temperature), 90, "temperature", "温度",
+				alarm_ordinary, "正常", alarm_abnormal, "异常", alarm_serious, "超过100度");
+			sql << "," << Platform::DEVICE_CPU_TEMPERATURE;
+			sql_value << "," << "'" << temperature << "'";
 		}
 
 		auto iter_memory = device_data[dca].find("memory");
 		if (iter_memory != device_data[dca].end()) //do not need calculate,direct get
 		{
 			auto mem_use_rate = std::any_cast<uint64_t>(iter_memory->second);
-			device_data[dca].erase(iter_memory); //remove this element
+			alarm_log(static_cast<float>(mem_use_rate), dca.th.memory_usage_threshold, "memory", "内存",
+				alarm_ordinary, "使用率正常", alarm_abnormal, "使用率异常", alarm_serious, "使用率为100%");
 			sql << "," << Platform::DEVICE_MEMORY_RATE;
 			sql_value << "," << "'" << mem_use_rate << "'";
 		}
@@ -369,103 +347,196 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 			if (iter_memoryTotal != device_data[dca].end()) //has memory
 			{
 				auto memoryTotal = std::any_cast<uint64_t>(iter_memoryTotal->second);
-				device_data[dca].erase(iter_memoryTotal); //remove this element
-				auto iter_memoryUsed = device_data[dca].find("memoryUsed");
-				if (iter_memoryUsed != device_data[dca].end())
+				if (memoryTotal != 0)
 				{
-					auto memoryUsed = std::any_cast<uint64_t>(iter_memoryUsed->second);
-					device_data[dca].erase(iter_memoryUsed); //remove this element
-					if (memoryTotal != 0)
+					auto iter_memoryUsed = device_data[dca].find("memoryUsed");
+					if (iter_memoryUsed != device_data[dca].end())
 					{
-						auto mem_use_rate = memoryUsed * (float)100.0 / memoryTotal;
+						auto memoryUsed = std::any_cast<uint64_t>(iter_memoryUsed->second);
+						auto mem_use_rate = memoryUsed * 100.0f / memoryTotal;
+						alarm_log(mem_use_rate, dca.th.memory_usage_threshold, "memory", "内存",
+							alarm_ordinary, "使用率正常", alarm_abnormal, "使用率异常", alarm_serious, "使用率为100%");
 						sql << "," << Platform::DEVICE_MEMORY_RATE;
 						sql_value << "," << "'" << mem_use_rate << "'";
 					}
-					else
-						MONITERSERVER_WARN("device(%s) memoryTotal is 0,so do not insert mem_use_rate", dca.deviceIp.c_str());
 				}
+				else
+					MONITERSERVER_WARN("device(%s) memoryTotal is 0,so do not insert mem_use_rate", dca.deviceIp.c_str());
 			}
 		}
 
-		auto iter_temperature = device_data[dca].find("temperature");
-		if (iter_temperature != device_data[dca].end())// has temperature
+		std::unordered_map<std::string, uint64_t> device_port_flow_last_temp;
+		std::unordered_map<std::string, uint64_t> device_cpu;
+		std::unordered_map<std::string, uint64_t> diskTotal;
+		std::unordered_map<std::string, uint64_t> diskUsed;
+		std::unordered_map<std::string, uint64_t> netIfSpeed;
+		std::unordered_map<std::string, uint64_t> netIn;
+		std::unordered_map<std::string, uint64_t> netOut;
+		for (auto iter = device_data[dca].begin(); iter != device_data[dca].end(); ++iter)
 		{
-			sql << "," << Platform::DEVICE_CPU_TEMPERATURE;
-			sql_value << "," << "'" << (std::any_cast<uint64_t>(iter_temperature->second)) << "'";
-			device_data[dca].erase(iter_temperature); //remove this element
+			auto pos = iter->first.find("cpu");//find one like cpux(x=1 or 2 or 3.......) or just single cpu
+			if (pos != std::string::npos)
+				device_cpu.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			else if ((pos = iter->first.find("diskTotal")) != std::string::npos)//find one like diskTotalx(x = 1 or 2 or 3...) or just single diskTotal
+				diskTotal.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			else if ((pos = iter->first.find("diskUsed")) != std::string::npos)//find one like diskUsedx(x = 1 or 2 or 3...) or just single diskUsed			
+				diskUsed.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			else if ((pos = iter->first.find("netIfSpeed")) != std::string::npos)//find one like netIfSpeedx(x = 1 or 2 or 3...) or just single netIfSpeed
+			{
+				netIfSpeed.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+				device_port_flow_last_temp.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			}
+			else if ((pos = iter->first.find("netIn")) != std::string::npos)//find one like netInx(x = 1 or 2 or 3...) or just single netIn			
+			{
+				netIn.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+				device_port_flow_last_temp.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			}
+			else if ((pos = iter->first.find("netOut")) != std::string::npos)//find one like netOutx(x = 1 or 2 or 3...) or just single netOut			
+			{
+				netOut.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+				device_port_flow_last_temp.emplace(iter->first, std::any_cast<uint64_t>(iter->second));
+			}
 		}
 
-		// at last, just leave net
-		int port_count = device_data[dca].size() / 3;
-		if (port_count > 0)
+		int cpu_size = device_cpu.size();
+		if (cpu_size > 0)
 		{
-			bool any_ifSpeed_isZero = false;
-			std::vector<Platform::PortFlow> this_port_flow;
-			Platform::PortFlow port_flow;
-			auto iter_net = device_data[dca].begin();
-			for (int i = 0; i < port_count; ++i, ++iter_net)
+			int cpu_rate_all = 0;
+			for (auto iter = device_cpu.begin(); iter != device_cpu.end(); ++iter)
 			{
-				auto iter_net_temp = iter_net;
-				port_flow.ifSpeed = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-				if (port_flow.ifSpeed == 0)
-				{
-					MONITERSERVER_WARN("device(%s) ifSpeed which get from device is 0,so do not insert net_use_rate", dca.deviceIp.c_str());
-					any_ifSpeed_isZero = true;
-					break;
-				}
-
-				for (int j = 0; j < port_count; ++j)
-					++iter_net_temp;
-				port_flow.in = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-
-				for (int p = 0; p < port_count; ++p)
-					++iter_net_temp;
-				port_flow.out = static_cast<int32_t>(std::any_cast<uint64_t>(iter_net_temp->second));
-				this_port_flow.emplace_back(port_flow);
+				cpu_rate_all = cpu_rate_all + static_cast<int>(iter->second);
+				alarm_log(static_cast<float>(iter->second), dca.th.cpu_usage_threshold, iter->first, iter->first,
+					alarm_ordinary, "使用率正常", alarm_abnormal, "使用率异常", alarm_serious, "使用率为100%");
 			}
+			auto cpu_use_rate = cpu_rate_all*1.0f / cpu_size;
+			sql << "," << Platform::DEVICE_CPU_RATE;
+			sql_value << "," << "'" << cpu_use_rate << "'";
+		}
 
-			auto iter = device_port_flow.find(dca);
-			if (!any_ifSpeed_isZero)
+		auto disk_size = diskTotal.size();
+		if (disk_size > 0)
+		{
+			bool need_insert = true;
+			float disk_use_rate_all = 0;
+			for (auto diskTotal_iter = diskTotal.begin(); diskTotal_iter != diskTotal.end(); ++diskTotal_iter)
 			{
-				if (iter != device_port_flow.end() && !(iter->second.empty())) //this device has last port_flow data
+				auto diskTotal_key = diskTotal_iter->first;
+				auto diskTotal_value = diskTotal_iter->second;
+				if (diskTotal_value == 0)
 				{
-					std::vector<float> net_use_rate;
-					float net_useRate_all = 0;
-					auto last_port_flow = iter->second;
-					assert(this_port_flow.size() == last_port_flow.size());
-					for (int i = 0; i < static_cast<int>(last_port_flow.size()); i++)
+					need_insert = false;
+					MONITERSERVER_WARN("device(%s) %s is 0, so do not insert disk_use_rate", dca.deviceIp.c_str(), diskTotal_key.c_str());
+					continue;
+				}
+				auto index = diskTotal_key.replace(0, strlen("diskTotal"), "");
+				auto diskUsed_key = "diskUsed" + index;
+				auto diskUsed_iter = diskUsed.find(diskUsed_key);
+				if (diskUsed_iter == diskUsed.end())//find nothing
+				{
+					need_insert = false;
+					MONITERSERVER_WARN("device(%s) has no %s, so do not insert disk_use_rate", dca.deviceIp.c_str(), diskUsed_key.c_str());
+					continue;
+				}
+				auto disk_use_rate_single = diskUsed_iter->second*100.0f / diskTotal_value;
+				std::string key_name, parameter_name;
+				key_name = "disk" + index;
+				parameter_name = "第" + index + "块硬盘";
+				if(index=="")
+					parameter_name = "硬盘";
+				alarm_log(disk_use_rate_single, dca.th.hard_disk_usage_threshold, key_name, parameter_name,
+					alarm_ordinary, "使用率正常", alarm_abnormal, "使用率异常", alarm_serious, "使用率为100%");
+				disk_use_rate_all = disk_use_rate_all + disk_use_rate_single;
+			}
+			if (need_insert)
+			{
+				auto disk_use_rate = disk_use_rate_all / disk_size;
+				sql << "," << Platform::DEVICE_DISK_RATE;
+				sql_value << "," << "'" << disk_use_rate << "'";
+			}
+		}
+
+		auto &device_port_flow_last = impl->this_ptr->getPortflowLast();
+		auto port_size = netIfSpeed.size();
+		if (port_size > 0 && !device_port_flow_last[dca].empty())
+		{
+			bool need_insert = true;
+			float port_use_rate_all = 0;
+			float port_use_rate_max = 0;
+			for (auto netIfSpeed_iter = netIfSpeed.begin(); netIfSpeed_iter != netIfSpeed.end(); ++netIfSpeed_iter)
+			{
+				auto netIfSpeed_key = netIfSpeed_iter->first;
+				auto netIfSpeed_value = netIfSpeed_iter->second;
+				if (netIfSpeed_value != 0)
+				{
+					auto index = netIfSpeed_key.replace(0, strlen("netIfSpeed"), "");
+					auto netIn_key = "netIn" + index;
+					auto netIn_iter = netIn.find(netIn_key);
+					if (netIn_iter == netIn.end())
 					{
-						auto change_flow_in = this_port_flow[i].in - last_port_flow[i].in;
-						auto change_flow_out = this_port_flow[i].out - last_port_flow[i].out;
-						auto change_flow = change_flow_in + change_flow_out; //byte
-
-						auto speed = (float)1.0* change_flow * 8 / (impl->this_ptr->cm_.moniter_rate / (float)1000.0);
-						auto use_rate = speed * 100 / this_port_flow[i].ifSpeed;
-						net_useRate_all = net_useRate_all + use_rate;
-						net_use_rate.emplace_back(use_rate);
+						need_insert = false;
+						MONITERSERVER_WARN("device(%s) has no %s, so do not insert net_use_rate", dca.deviceIp.c_str(), netIn_key.c_str());
+						continue;
 					}
-					float net_useRate_average = net_useRate_all / (net_use_rate.size());
-					if (net_useRate_average > (float)100)
-						MONITERSERVER_WARN("the device(ip:%s) maybe reboot,net_useRate_average is %f", dca.deviceIp.c_str(), net_useRate_average);
+					auto netOut_key = "netOut" + index;
+					auto netOut_iter = netOut.find(netOut_key);
+					if (netOut_iter == netOut.end())
+					{
+						need_insert = false;
+						MONITERSERVER_WARN("device(%s) has no %s, so do not insert net_use_rate", dca.deviceIp.c_str(), netOut_key.c_str());
+						continue;
+					}
 
-					auto iter_max = std::max_element(net_use_rate.begin(), net_use_rate.end());
-					sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
-					sql_value << "," << "'" << *iter_max << "'";
-					sql << "," << Platform::DEVICE_BANDWIDTH_USE_AVERAGE;
-					sql_value << "," << "'" << net_useRate_average << "'";
+					auto netIn_iter_last = device_port_flow_last[dca].find(netIn_key);
+					if (netIn_iter_last == device_port_flow_last[dca].end())
+					{
+						need_insert = false;
+						MONITERSERVER_WARN("device(%s) last time has no %s, so do not insert net_use_rate", dca.deviceIp.c_str(), netIn_key.c_str());
+						continue;
+					}
+					auto netOut_iter_last = device_port_flow_last[dca].find(netOut_key);
+					if (netOut_iter_last == device_port_flow_last[dca].end())
+					{
+						need_insert = false;
+						MONITERSERVER_WARN("device(%s) last time has no %s, so do not insert net_use_rate", dca.deviceIp.c_str(), netOut_key.c_str());
+						continue;
+					}
 
-					iter->second.swap(this_port_flow);//this_port_flow will become the last_port_flow for the next request
+					auto netIn_this = netIn_iter->second;
+					auto netOut_this = netOut_iter->second;
+					auto netIn_last = netIn_iter_last->second;
+					auto netOut_last = netOut_iter_last->second;
+					auto collect_time = impl->this_ptr->cm_.moniter_rate / 1000;
+					auto net_use_rate_single = ((netIn_this + netOut_this - netIn_last - netOut_last) / collect_time) * 100.0f / netIfSpeed_value;
+					std::string key_name, parameter_name;
+					key_name = "port" + index;
+					parameter_name = "第" + index + "个接口";
+					if (index == "")
+						parameter_name = "接口";
+					alarm_log(net_use_rate_single, dca.th.network_usage_threshold, key_name, parameter_name,
+						alarm_ordinary, "使用率正常", alarm_abnormal, "使用率异常", alarm_serious, "使用率为100%");
+					port_use_rate_all = port_use_rate_all + net_use_rate_single;
+					port_use_rate_max = (port_use_rate_max > net_use_rate_single) ? port_use_rate_max : net_use_rate_single;
 				}
-				else // no last port_flow data,this time do not write db
-					device_port_flow[dca] = this_port_flow;
+				else
+				{
+					need_insert = false;
+					MONITERSERVER_WARN("device(%s) %s is 0, so do not insert net_use_rate", dca.deviceIp.c_str(), netIfSpeed_key.c_str());
+				}
 			}
-			else
-				iter->second.clear(); // for next request ,there is no last_port_flow any more
+			if (need_insert)
+			{
+				auto net_use_rate = port_use_rate_all / port_size;
+				sql << "," << Platform::DEVICE_PORT_BANDWIDTH_MAX;
+				sql_value << "," << "'" << port_use_rate_max << "'";
+				sql << "," << Platform::DEVICE_BANDWIDTH_USE_AVERAGE;
+				sql_value << "," << "'" << net_use_rate << "'";
+			}
 		}
+		device_port_flow_last[dca] = device_port_flow_last_temp;
 		device_data[dca].clear();
 
 		sql << "," << Platform::DEVICE_STATUS;
-		sql_value << "," << "'" << 1 << "'"; //the device is online
+		sql_value << "," << "'" << Platform::DEVICE_ONLINE << "'"; //the device is online
 		sql << ")";
 		sql_value << ")";
 		sql << sql_value.str();
@@ -498,9 +569,9 @@ static SNMPAPI_STATUS CALLBACK snmpCallBack(HSNMP_SESSION hSession, HWND, UINT, 
 	}
 
 	/*auto end1 = std::chrono::system_clock::now();
-		int elapsed_seconds1 = std::chrono::duration_cast<std::chrono::milliseconds>
-			(end1 - start).count();
-		printf("%d\n", elapsed_seconds1);*/
+	int elapsed_seconds1 = std::chrono::duration_cast<std::chrono::milliseconds>
+		(end1 - start).count();
+	printf("%d\n", elapsed_seconds1);*/
 	return 0;
 }
 
@@ -520,8 +591,8 @@ void Platform::DealDeviceData::init()
 	load_.resize(cm_.load_count);
 	snmp_->init();
 	makeLoadsession();
-	//thread_moniter_ = std::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
-	//thread_moniter_offline_ = std::thread(std::bind(&DealDeviceData::deviceOfflineMonitorThread, this));
+	thread_moniter_ = std::thread(std::bind(&DealDeviceData::deviceMonitorThread, this));
+	thread_moniter_offline_ = std::thread(std::bind(&DealDeviceData::deviceOfflineMonitorThread, this));
 	thread_monitor_camera_status_ = std::thread(std::bind(&DealDeviceData::cameraStatusMonitorThread, this));
 }
 
@@ -556,7 +627,8 @@ void Platform::DealDeviceData::getMessageFromIniConfigure(const std::string& dir
 	cm_.db_port_oracle = parser.getValue("OracleDbConfig", "DbPort");
 	cm_.deviceDataTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceDataTableName");
 	cm_.deviceTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceTableName");
-	cm_.device_alarmLogTable_name_oracle= parser.getValue("OracleDbConfig", "DeviceAlarmLogTableName");
+	cm_.device_alarmLogTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceAlarmLogTableName");
+	cm_.deviceThresholdTable_name_oracle = parser.getValue("OracleDbConfig", "DeviceThresholdTableName");
 	cm_.load_count = std::atoi(parser.getValue("ComConfig", "LoadCount").c_str());
 	cm_.moniter_rate = std::atoi(parser.getValue("ComConfig", "MoniterRate").c_str());
 	//cm_.moniter_rate = cm_.moniter_rate >= 30000 ? cm_.moniter_rate : 30000; //snmp delay is nearly 30s
@@ -604,6 +676,7 @@ void Platform::DealDeviceData::getMessageFromConfigure(const std::string& dir)
 
 void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttribute>& device_compare_attribute, otl_connect & db)
 {
+	// select inner join
 	std::vector<std::string> device_model_name;
 	for (auto iter = model_oid_.begin(); iter != model_oid_.end(); ++iter)
 	{
@@ -611,8 +684,13 @@ void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttrib
 		device_model_name.emplace_back(device_model_name_temp);
 	}
 	std::ostringstream message;
-	message << "select " << DEVICE_MODEL << "," << DEVICE_IP << "," << DEVICE_ID << " from "
-		<< cm_.deviceTable_name_oracle << " where " << DEVICE_MODEL << " in('";
+	message << "select " << DEVICE_MODEL << "," << cm_.deviceTable_name_oracle << "." << DEVICE_IP
+		<< "," << DEVICE_ID << "," << CPU_USAGE_THRESHOLD << "," << MEMORY_USAGE_THRESHOLD
+		<< "," << HARD_DISK_USAGE_THRESHOLD << "," << NETWORK_USAGE_THRESHOLD
+		<< " from " << cm_.deviceTable_name_oracle << " inner join "
+		<< cm_.deviceThresholdTable_name_oracle << " on " << cm_.deviceTable_name_oracle << "." << DEVICE_IP
+		<< " = " << cm_.deviceThresholdTable_name_oracle << "." << DEVICE_IP
+		<< " where " << DEVICE_MODEL << " in('";
 	auto size = device_model_name.size();
 	for (auto i = 0; i < static_cast<int>(size - 1); ++i)
 		message << device_model_name.at(i) << "','";
@@ -621,14 +699,20 @@ void Platform::DealDeviceData::getDeviceIpFromDB(std::vector<DeviceCompareAttrib
 
 	otl_stream o(size, sql.c_str(), db);//otl_stream just for select, else use otl_nocommit_stream, since select do not need to commit
 	std::string DEVICEMODEL, DEVICEID, DEVICEIP = "";
+	int cpu_usage_threshold, memory_usage_threshold, hard_disk_usage_threshold, network_usage_threshold = 0;
 	while (!o.eof())
 	{
-		o >> DEVICEMODEL >> DEVICEIP >> DEVICEID;
-		DeviceCompareAttribute dcb;
-		dcb.deviceModel = DEVICEMODEL;
-		dcb.deviceIp = DEVICEIP;
-		dcb.deviceId = DEVICEID;
-		device_compare_attribute.emplace_back(dcb);
+		o >> DEVICEMODEL >> DEVICEIP >> DEVICEID >> cpu_usage_threshold >> memory_usage_threshold
+			>> hard_disk_usage_threshold >> network_usage_threshold;
+		DeviceCompareAttribute dca;
+		dca.deviceModel = DEVICEMODEL;
+		dca.deviceIp = DEVICEIP;
+		dca.deviceId = DEVICEID;
+		dca.th.cpu_usage_threshold = cpu_usage_threshold;
+		dca.th.memory_usage_threshold = memory_usage_threshold;
+		dca.th.hard_disk_usage_threshold = hard_disk_usage_threshold;
+		dca.th.network_usage_threshold = network_usage_threshold;
+		device_compare_attribute.emplace_back(dca);
 	}
 	o.close(true); //reuse this stream 
 }
@@ -691,8 +775,9 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 					if (ret == 0)//setSnmpParameter ok
 					{
 						(*iter_s)->emplace_back(da);
-						device_port_flow_[*iter];//make empty value,make sure the key exists when using
+						device_port_flow_last_[*iter];//make empty value,make sure the key exists when using
 						device_data_[*iter];//make empty value
+						result_data_last_[*iter];//make empty value
 						device_online_flag_[*iter];
 					}
 					else
@@ -738,8 +823,9 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 				{
 					(*iter_s)->emplace_back(da);
 					++iter_s;
-					device_port_flow_[da.dca];//make empty value,make sure the key exists when using
+					device_port_flow_last_[da.dca];//make empty value,make sure the key exists when using
 					device_data_[da.dca];//make empty value
+					result_data_last_[da.dca];//make empty value
 					device_online_flag_[da.dca];
 				}
 				else
@@ -763,10 +849,10 @@ void Platform::DealDeviceData::setDevcieAndLoadBalancing(std::vector<DeviceCompa
 					if (*iter_decrease == (*iter).dca)
 					{
 						is_find = true;
-						releaseDeviceResource(nullptr, (*iter).context, (*iter).vbl, //release resource
-							(*iter).manager_entity, (*iter).agent_entity, (*iter).pdu);
-						device_port_flow_.erase((*iter).dca);// note: if the device_port_flow_ has been read at the same time in the function(snmpCallBack,another thread),this will make undefined behavior. But it will not happen under the large moniter_rate
+						releaseDeviceResource(nullptr, (*iter).context, (*iter).vbl, (*iter).manager_entity, (*iter).agent_entity, (*iter).pdu);//release resource
+						device_port_flow_last_.erase((*iter).dca);// note: if the device_port_flow_ has been read at the same time in the function(snmpCallBack,another thread maybe),this will make undefined behavior. But it will not happen under the large moniter_rate
 						device_data_.erase((*iter).dca); //as same as above
+						result_data_last_.erase((*iter).dca);//as same as above
 						is_oid_whole_.erase(iter->dca);// as same as above
 						device_online_flag_.erase(iter->dca); // be read in deviceOfflineMonitorThread,also as same as above
 						(*iter_s)->erase(iter);//delete the decrease device
@@ -934,7 +1020,7 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 					};
 					try
 					{
-						snmp_->setVbl((*iter).vbl, 0, oid["sysDesc"]); //deal sysDesc alone
+						snmp_->setVbl((*iter).vbl, 0, oid["sysDesc"]); //deal sysDesc alone，because the return data too big(occupy MAXOBJIDSTRSIZE 1408) 
 						snmp_->setPdu((*iter).pdu, &((*iter).vbl));
 						snmp_->sendRequestMessage((*iter).session, (*iter).manager_entity, (*iter).agent_entity,
 							(*iter).context, (*iter).pdu);
@@ -961,7 +1047,7 @@ void Platform::DealDeviceData::deviceMonitorThread() noexcept
 						snmp_->getCountVbl((*iter).vbl, count_vbl);
 						cleanVbl(count_vbl);
 						is_oid_whole_[(*iter).dca] = false;
-						device_port_flow_[(*iter).dca].clear();
+						device_port_flow_last_[(*iter).dca].clear();
 					}
 				}
 			}
@@ -1002,7 +1088,7 @@ void Platform::DealDeviceData::deviceOfflineMonitorThread() noexcept
 						<< "," << Platform::DEVICE_UPLOAD_TIME << "," << Platform::DEVICE_STATUS << ")"
 						<< " values (" << "'" << device_online_flag_pair.first.deviceId << "'" << ","
 						<< "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')" << ","
-						<< "'" << DEVICE_OFFLINE <<"'" << ")";
+						<< "'" << DEVICE_OFFLINE << "'" << ")";
 					db_writer_->addSql(std::move(sql.str()));
 
 					//for deviceTable,insert offline
@@ -1052,7 +1138,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 			return (h2 << 1) ^ (h1 >> 1); // or use boost::hash_combine
 		}
 	};
-	
+
 	try
 	{
 		otl_connect db;
@@ -1062,7 +1148,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 			cm_.db_ip_oracle << ":" << cm_.db_port_oracle << "/" << cm_.db_name_oracle;
 
 		std::ostringstream message;
-		message << "select " << DEVICE_IP << "," << DEVICE_PORT <<  " from "
+		message << "select " << DEVICE_IP << "," << DEVICE_PORT << " from "
 			<< cm_.deviceTable_name_oracle << " where " << ITS_DEVICE_TYPE << " = " << "'" << CAMERA << "'"
 			<< " and " << DEV_STATUS_NORMAL << " = " << "'" << DEVICE_STATUS_OK << "'";
 		auto oracle_sql = message.str();
@@ -1120,7 +1206,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 				need_rlogon_oracle = true;
 				continue;
 			}
-		
+
 			while (run_)
 			{
 				if (need_rlogon_mysql)
@@ -1130,6 +1216,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 					if (!connect)
 					{
 						MONITERSERVER_ERROR("mysql_real_connect failed :%s", mysql_error(connect));
+						std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
 						continue;
 					}
 					need_rlogon_mysql = false;
@@ -1140,6 +1227,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 					MONITERSERVER_ERROR("mysql_real_query failed:%s", mysql_error(connect));
 					mysql_close(connect);
 					need_rlogon_mysql = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
 					continue;
 				}
 				auto mysql_result = mysql_store_result(connect);
@@ -1159,7 +1247,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 						update_sql.str("");
 						auto mysql_row = mysql_fetch_row(mysql_result); //mysql_row[0]--ip, mysql_row[1]--port,mysql_row[2]--status_code
 						camera_status_code_this.emplace(CameraIpPort(mysql_row[0], static_cast<uint16_t>(std::atoi(mysql_row[1]))), mysql_row[2]);
-						if (mysql_row[2]== CAMERA_OFFLINE) //camera offline
+						if (mysql_row[2] == CAMERA_OFFLINE) //camera offline
 						{
 							update_sql << "update " << cm_.deviceTable_name_oracle << " set " << DEVICE_WORK_STATUS
 								<< " = " << "'" << DEVICE_OFFLINE << "'" << " where "
@@ -1167,7 +1255,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 								<< " and " << DEVICE_PORT << " = " << "'" << mysql_row[1] << "'";
 							db_writer_->addSql(update_sql.str());
 						}
-						else if (mysql_row[2]== CAMERA_ONLINE) //camera online
+						else if (mysql_row[2] == CAMERA_ONLINE) //camera online
 						{
 							update_sql << "update " << cm_.deviceTable_name_oracle << " set " << DEVICE_WORK_STATUS
 								<< " = " << "'" << DEVICE_ONLINE << "'" << " where "
@@ -1200,19 +1288,19 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 								insert_sql << "insert into " << cm_.device_alarmLogTable_name_oracle << "(" << ALARM_TIME
 									<< "," << ALARM_DEAL_STATUS << "," << ALARM_TYPE << "," << ALARM_LEVEL
 									<< "," << ALARM_DETAIL << ")"
-									<< " values(" << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')"
-									<< "," << "'" << ALARM_DEAL_STATUS_NO_DEAL << "'";
+									<< " values(" << "to_date('" << time.str() << "','YYYY-MM-DD HH24:MI:SS')";
 								if (iter_this->second == CAMERA_OFFLINE) //camera turn offline
 								{
 									std::string alarm_detail = "摄相机断线";
 									auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
-									insert_sql << "," << "'" << ALARM_TYPE_OFFLINE << "'"
+									insert_sql << "," << "'" << ALARM_DEAL_STATUS_NO_DEAL << "'"
+										<< "," << "'" << ALARM_TYPE_OFFLINE << "'"
 										<< "," << "'" << ALARM_LEVEL_FATAL << "'"
 										<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
 										<< " " << alarm_detail_utf8 << "'" << ")";
 									db_writer_->addSql(insert_sql.str());
 								}
-								else //camera online （maybe turn online or maybe always online ）
+								else //camera online (maybe turn online or maybe always online)
 								{
 									auto iter_last1 = camera_status_code_last.find(CameraIpPort(iter_this->first.ip, iter_this->first.port));
 									if (iter_last1 != camera_status_code_last.end()) //find ,means status changed
@@ -1221,7 +1309,8 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 										{
 											std::string alarm_detail = "摄相机在线";
 											auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
-											insert_sql << "," << "'" << ALARM_TYPE_ONLINE << "'"
+											insert_sql << "," << "'" << ALARM_DEAL_STATUS_WITH_DEAL << "'"
+												<< "," << "'" << ALARM_TYPE_ONLINE << "'"
 												<< "," << "'" << ALARM_LEVEL_ORDINARY << "'"
 												<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
 												<< " " << alarm_detail_utf8 << "'" << ")";
@@ -1232,7 +1321,8 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 									{
 										std::string alarm_detail = "摄相机在线";
 										auto alarm_detail_utf8 = gbkToUtf8(alarm_detail);
-										insert_sql << "," << "'" << ALARM_TYPE_ONLINE << "'"
+										insert_sql << "," << "'" << ALARM_DEAL_STATUS_WITH_DEAL << "'"
+											<< "," << "'" << ALARM_TYPE_ONLINE << "'"
 											<< "," << "'" << ALARM_LEVEL_ORDINARY << "'"
 											<< "," << "'" << iter_this->first.ip << ":" << iter_this->first.port
 											<< " " << alarm_detail_utf8 << "'" << ")";

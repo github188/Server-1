@@ -61,6 +61,11 @@ namespace Platform
 	const std::string ALARM_DETAIL = "alarm_detail";
 	const std::string ALARM_ADDTIONAL = "alarm_addtional";
 	const std::string ALARM_DEAL_STATUS = "alarm_deal_status";// 0- no deal ,1- with deal
+	//device_threshold table
+	const std::string  CPU_USAGE_THRESHOLD = "cpu_usage1";
+	const std::string  MEMORY_USAGE_THRESHOLD = "memory_usage1";
+	const std::string  HARD_DISK_USAGE_THRESHOLD = "hard_disk_usage1";
+	const std::string  NETWORK_USAGE_THRESHOLD = "network_usage1";
 	//another db(ivp:platform -camera)
 	const std::string CAMERA_STATUS_CODE = "StatusCode";
 	const std::string CAMERA_IPV4 = "IPv4";
@@ -78,6 +83,7 @@ namespace Platform
 		std::string deviceTable_name_oracle;
 		std::string device_alarmLogTable_name_oracle;
 		std::string deviceDataTable_name_oracle;
+		std::string deviceThresholdTable_name_oracle;
 		std::string dbUser_name_mysql;
 		std::string db_ip_mysql;
 		std::string db_port_mysql;
@@ -104,6 +110,14 @@ namespace Platform
 		uint32_t ifSpeed;
 	} PortFlow;
 
+	struct threshold
+	{
+		int cpu_usage_threshold;
+		int memory_usage_threshold;
+		int hard_disk_usage_threshold;
+		int network_usage_threshold;
+	};
+
 	typedef struct devicecompareattribute
 	{
 		std::string deviceModel;
@@ -113,6 +127,7 @@ namespace Platform
 		{
 			return ((deviceModel == da.deviceModel) && (deviceIp == da.deviceIp) && (deviceId == da.deviceId));
 		}
+		struct threshold th;
 	} DeviceCompareAttribute;
 
 	typedef struct deviceattribute
@@ -159,9 +174,9 @@ namespace Platform
 
 	typedef std::unordered_map<std::string, std::unordered_map<std::string, std::string>> ModelOid;
 	typedef std::unordered_map<DeviceCompareAttribute, bool, DeviceCompareAttributeHash> IsOidWhole;
-	typedef std::unordered_map<DeviceCompareAttribute, std::vector<PortFlow>, DeviceCompareAttributeHash> DevicePortFlow;
-	typedef std::unordered_map<DeviceCompareAttribute, std::map<std::string, std::any>, DeviceCompareAttributeHash> DeviceData;
-
+	typedef std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, uint64_t>, DeviceCompareAttributeHash> DevicePortFlow;
+	typedef std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, std::any>, DeviceCompareAttributeHash> DeviceData;
+	typedef std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, float>, DeviceCompareAttributeHash> ResultData;
 	class Snmp;
 	class DealDeviceData sealed :public std::enable_shared_from_this<DealDeviceData>
 	{
@@ -180,8 +195,9 @@ namespace Platform
 		std::unordered_map<DeviceCompareAttribute, bool, DeviceCompareAttributeHash> is_oid_whole_;// since a group of oids too big, must split send request. Makesure get all request,or do not deal this missing device data
 		std::unordered_map<DeviceCompareAttribute, int, DeviceCompareAttributeHash> device_online_flag_;// online=1, offline=0
 		std::unordered_map<std::shared_ptr<std::vector<DeviceAttribute>>, void*, load_session::Hash> load_session_; //every load has a session which be bound to a system thread
-		std::unordered_map<DeviceCompareAttribute, std::vector<PortFlow>, DeviceCompareAttributeHash> device_port_flow_;//one or several port flow, the data be put into struct PortFlow	
-		std::unordered_map<DeviceCompareAttribute, std::map<std::string,std::any>, DeviceCompareAttributeHash> device_data_;//the data return by snmp request
+		std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, uint64_t>, DeviceCompareAttributeHash> device_port_flow_last_;//one or several port flow,put the data into struct PortFlow	
+		std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, std::any>, DeviceCompareAttributeHash> device_data_;//the data return by snmp request
+		std::unordered_map<DeviceCompareAttribute, std::unordered_map<std::string, float>, DeviceCompareAttributeHash> result_data_last_;//calculate result with the data return by snmp request last time
 		std::unordered_map<std::shared_ptr<std::vector<DeviceAttribute>>, std::shared_ptr<std::mutex>, load_session::Hash > load_mutex_; //every load has a mutex
 
 	public:
@@ -195,9 +211,10 @@ namespace Platform
 		void freeAllResource();
 		std::shared_ptr<Snmp> getSnmp() const{ return snmp_; }
 		ModelOid& getModelOid() { return model_oid_; }
-		DevicePortFlow& getPortflow(){ return device_port_flow_; }
+		DevicePortFlow& getPortflowLast(){ return device_port_flow_last_; }
 		std::vector<DeviceCompareAttribute>& getDeviceCompareAttribute() { return device_compare_attribute_; }
 		DeviceData& getDeviceData() { return device_data_; }
+		ResultData& getResultDataLast() { return result_data_last_; }
 		IsOidWhole& getIsOidWhole() { return is_oid_whole_; }
 		auto& getDeviceOnlineFlag() { return device_online_flag_; }
 		int getDbWriterThreadAliveCount()const;
