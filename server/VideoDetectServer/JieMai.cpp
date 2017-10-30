@@ -17,11 +17,18 @@ void ITS::JieMai::initJiemai()
 
 	ret = NET_DEV_SetExceptionCallback(ExceptionCallback, nullptr);
 	if (ret == OS_FALSE)
-		VIDEODETECTSERVER_ERROR("NET_DEV_SetExceptionCallback failed:%d", NET_DEV_GetLastError());
-
-	/*ret = NET_DEV_SetReconnect(true, 3000);
+	{
+		std::ostringstream str;
+		str << "NET_DEV_SetExceptionCallback failed(%d): " << NET_DEV_GetLastError();
+		throw std::runtime_error(str.str());
+	}
+	ret = NET_DEV_SetReconnect(OS_FALSE, 0);
 	if (ret == OS_FALSE)
-		VIDEODETECTSERVER_ERROR("NET_DEV_SetReconnect failed:%d", NET_DEV_GetLastError());*/
+	{
+		std::ostringstream str;
+		str << "NET_DEV_SetReconnect failed(%d): " << NET_DEV_GetLastError();
+		throw std::runtime_error(str.str());
+	}
 }
 
 int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::string user_name,
@@ -54,7 +61,13 @@ int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::str
 	memset(&alarmChan, 0, sizeof(ALARM_CHAN_ARA));
 	auto AlarmHandle = NET_DEV_SetupAlarmChan(userId, &alarmChan, MsgCallback, share_ptr.get());
 	if (AlarmHandle == -1)
-		VIDEODETECTSERVER_ERROR("SetupAlarmChan(userId:%d) failed:%d\n", userId, NET_DEV_GetLastError());
+	{
+		VIDEODETECTSERVER_ERROR("NET_DEV_SetupAlarmChan(userId:%d,camera(%s:%d)) failed:%d\n", userId, ip.c_str(), port, NET_DEV_GetLastError());
+		auto ret = NET_DEV_Logout(userId);
+		if (ret == OS_FALSE)
+			VIDEODETECTSERVER_ERROR("NET_DEV_Logout(user_id:%d,camera(%s:%d)) failed:%d(after NET_DEV_SetupAlarmChan failed),maybe resource Leak!!", user_id, ip.c_str(), port, NET_DEV_GetLastError());
+		return -1;
+	}
 	alarm_handle = AlarmHandle;
 	return 0;
 }
@@ -64,7 +77,7 @@ int ITS::JieMai::logout(OS_INT32 user_id)
 	auto ret = NET_DEV_Logout(user_id);
 	if (ret == OS_FALSE)
 	{
-		VIDEODETECTSERVER_ERROR(" NET_DEV_Logout(user_id:%d) failed:%d", user_id, NET_DEV_GetLastError());
+		VIDEODETECTSERVER_ERROR(" NET_DEV_Logout(user_id:%d) failed:%d,maybe resource Leak!!", user_id, NET_DEV_GetLastError());
 		return -1;
 	}	
 	return 0;
@@ -93,7 +106,7 @@ int ITS::JieMai::closeAlarmChan(const OS_INT32 alarm_handle)
 	auto ret = NET_DEV_CloseAlarmChan(alarm_handle);
 	if (ret == OS_FALSE)
 	{
-		VIDEODETECTSERVER_ERROR("NET_DEV_CloseAlarmChan(alarm_handle:%d) failed:%d", alarm_handle, NET_DEV_GetLastError());
+		VIDEODETECTSERVER_ERROR("NET_DEV_CloseAlarmChan(alarm_handle:%d) failed:%d,maybe resource Leak!!", alarm_handle, NET_DEV_GetLastError());
 		return -1;
 	}
 	return 0;

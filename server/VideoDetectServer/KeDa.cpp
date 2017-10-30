@@ -64,7 +64,13 @@ int ITS::KeDa::connectAndPostLoginMessage(const std::string& ip, uint16_t port,
 
 	auto ret = IvhsPostMsg(&tMessage);
 	if (ret == -1)
+	{
 		VIDEODETECTSERVER_ERROR("post login message to camera(%s:%d) failed", ip.c_str(), port);
+		ret = IvhsDisconnect(g_dwHandle);
+		if (ret == -1)
+			VIDEODETECTSERVER_ERROR("IvhsDisconnect(%d) camera(%s:%d) failed(after IvhsPostMsg failed),maybe resource Leak!!", g_dwHandle, ip.c_str(), port);
+		return -1;
+	}
 	return 0;
 }
 
@@ -73,7 +79,7 @@ int ITS::KeDa::disconnect(KOSA_HANDLE dwHandle)
 	auto ret = IvhsDisconnect(dwHandle);
 	if (ret == -1)
 	{
-		VIDEODETECTSERVER_ERROR("IvhsDisconnect failed");
+		VIDEODETECTSERVER_ERROR("IvhsDisconnect(%d) failed,maybe resource Leak!!", dwHandle);
 		return -1;
 	}
 	return 0;

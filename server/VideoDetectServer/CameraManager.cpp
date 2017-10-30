@@ -247,7 +247,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							temp << "," << "'" << "" << "'" << ")";
 						dbWriter_ptr->addSql(temp.str());
 
-						auto sql_str =temp.str();
+						auto sql_str = temp.str();
 						auto pos = sql_str.find(cm_.videoDetectDataTable_name);
 						auto sql_str_front = sql_str.substr(0, pos);
 						auto sql_str_back = sql_str.substr(pos + cm_.videoDetectDataTable_name.size());
@@ -257,18 +257,19 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 				}
 				break;
 				case EV_DEV_DISCONNECT_NTY:
-					printf("EV_DEV_DISCONNECT_NTY\n");
 				case EV_COMM_PEER_DISCONNECT_NTY:
-					printf("EV_COMM_PEER_DISCONNECT_NTY\n");
 				case EV_PEER_DISCONNECT_NTY:
 				{
 					auto keda_userName = cm_.keda_userName;
 					auto keda_password = cm_.keda_password;
 					auto dwHandle = ptMsg->dwHandle;
+					VIDEODETECTSERVER_DEBUG("disconnect with camera(%s:%d)", kdcip.ip.c_str(), kdcip.port);
 					std::thread thread([KeDa_sharedPtr, kdcip, keda_userName, keda_password, dwHandle]()
 					{
 						VIDEODETECTSERVER_INFO("disconnect with camera,thread(%d) begin to relogin(%s:%d)", std::this_thread::get_id(), kdcip.ip.c_str(), kdcip.port);
-						KeDa_sharedPtr->disconnect(dwHandle);
+						auto ret = KeDa_sharedPtr->disconnect(dwHandle);
+						if (ret == -1)
+							VIDEODETECTSERVER_WARN("disconnect(dwHandle:%d) camera(%s:%d) failed in relogin thread(%d)", dwHandle, kdcip.ip.c_str(), kdcip.port, std::this_thread::get_id());
 						while (true)
 						{
 							std::unique_lock<std::mutex> locker(KeDa_sharedPtr->mtx_);
@@ -277,7 +278,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							if (need_connect)
 							{
 								KOSA_HANDLE dHandle = 0;
-								auto ret = KeDa_sharedPtr->connectAndPostLoginMessage(kdcip.ip, kdcip.port, keda_userName, keda_password, dHandle);
+								ret = KeDa_sharedPtr->connectAndPostLoginMessage(kdcip.ip, kdcip.port, keda_userName, keda_password, dHandle);
 								if (ret == 0)
 								{
 									std::unique_lock<std::mutex> locker_dwHandle(KeDa_sharedPtr->mtx_);
@@ -296,7 +297,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							}
 						}
 					});
-					thread.detach();	
+					thread.detach();
 				}
 				break;
 				default:
@@ -394,23 +395,28 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 				{
 					auto jiemai_userName = cm_.jiemai_userName;
 					auto jiemai_password = cm_.jiemai_password;
-					std::thread thread([JieMai_sharedPtr, lUserID,jiemai_userName, jiemai_password]()
+					auto jiemai_cameraId_alarmHandle = JieMai_sharedPtr->jiemai_userId_alarmHandle_;
+					JieMaiCameraIpPort jmcip("", 0);
+					OS_UINT32 handle = 0;
+					for (auto iter = jiemai_cameraId_alarmHandle.begin(); iter != jiemai_cameraId_alarmHandle.end(); ++iter)
 					{
-						auto jiemai_cameraId_alarmHandle = JieMai_sharedPtr->jiemai_userId_alarmHandle_;
-						JieMaiCameraIpPort jmcip("", 0);
-						OS_UINT32 handle = 0;
-						for (auto iter = jiemai_cameraId_alarmHandle.begin(); iter != jiemai_cameraId_alarmHandle.end(); ++iter)
+						if (iter->second.user_id == lUserID)
 						{
-							if (iter->second.user_id == lUserID)
-							{
-								jmcip = iter->first;
-								handle = iter->second.alarm_handle;
-								break;
-							}
+							jmcip = iter->first;
+							handle = iter->second.alarm_handle;
+							break;
 						}
+					}
+					VIDEODETECTSERVER_DEBUG("disconnect with camera(%s:%d)", jmcip.ip.c_str(), jmcip.port);
+					std::thread thread([JieMai_sharedPtr, lUserID, jiemai_userName, jiemai_password, jmcip, handle]()
+					{
 						VIDEODETECTSERVER_INFO("disconnect with camera,thread(%d) begin to relogin(%s:%d)", std::this_thread::get_id(), jmcip.ip.c_str(), jmcip.port);
-						JieMai_sharedPtr->closeAlarmChan(handle);
+						auto ret = JieMai_sharedPtr->closeAlarmChan(handle);
+						if (ret == -1)
+							VIDEODETECTSERVER_WARN("closeAlarmChan(handle:%d) camera(%s:%d) failed in relogin thread(%d)", handle, jmcip.ip.c_str(), jmcip.port, std::this_thread::get_id());
 						JieMai_sharedPtr->logout(lUserID);
+						if (ret == -1)
+							VIDEODETECTSERVER_WARN("logout(user_id:%d) camera(%s:%d) failed in relogin thread(%d)", lUserID, jmcip.ip.c_str(), jmcip.port, std::this_thread::get_id());
 						while (true)
 						{
 							std::unique_lock<std::mutex> locker(JieMai_sharedPtr->mtx_);
@@ -420,7 +426,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							{
 								int user_id = 0;
 								int alarm_handle = 0;
-								auto ret = JieMai_sharedPtr->login(jmcip.ip, jmcip.port, jiemai_userName, jiemai_password, user_id, alarm_handle);
+								ret = JieMai_sharedPtr->login(jmcip.ip, jmcip.port, jiemai_userName, jiemai_password, user_id, alarm_handle);
 								if (ret == 0)
 								{
 									std::unique_lock<std::mutex> locker_alarmHandle(JieMai_sharedPtr->mtx_);
