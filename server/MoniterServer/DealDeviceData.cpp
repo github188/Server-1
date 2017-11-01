@@ -1215,7 +1215,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 						cm_.db_password_mysql.c_str(), cm_.db_name_mysql.c_str(), std::atoi(cm_.db_port_mysql.c_str()), NULL, 0);
 					if (!connect)
 					{
-						MONITERSERVER_ERROR("mysql_real_connect failed :%s", mysql_error(connect));
+						MONITERSERVER_ERROR("mysql_real_connect failed :%s", mysql_error(t_mysql));
 						std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
 						continue;
 					}
@@ -1224,7 +1224,7 @@ void Platform::DealDeviceData::cameraStatusMonitorThread() noexcept
 				auto ret = mysql_real_query(connect, mysql_sql.c_str(), mysql_sql.length());
 				if (ret)
 				{
-					MONITERSERVER_ERROR("mysql_real_query failed:%s", mysql_error(connect));
+					MONITERSERVER_ERROR("mysql_real_query failed:%s", mysql_error(t_mysql));
 					mysql_close(connect);
 					need_rlogon_mysql = true;
 					std::this_thread::sleep_for(std::chrono::milliseconds(retry_rate));
