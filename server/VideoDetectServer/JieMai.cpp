@@ -32,7 +32,7 @@ void ITS::JieMai::initJiemai()
 }
 
 int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::string user_name,
-	const std::string password, OS_INT32 & user_id, OS_INT32& alarm_handle)
+	const std::string password, OS_INT32 & user_id, OS_INT32& alarm_handle, void* user_data)
 {
 	auto userId = NET_DEV_Login(ip.c_str(), port, user_name.c_str(), password.c_str(), NULL);
 	if (userId == -1)
@@ -42,24 +42,9 @@ int ITS::JieMai::login(const std::string ip, const uint16_t port, const std::str
 	}
 	user_id = userId;
 
-	std::shared_ptr<JieMaiCameraIpPort> share_ptr;
-	for (auto share_ptr_temp : ip_port_for_cb_)
-	{
-		if (share_ptr_temp->ip == ip && share_ptr_temp->port == port)
-		{
-			share_ptr = share_ptr_temp;
-			break;
-		}
-	}
-	if (share_ptr == nullptr)
-	{
-		share_ptr = std::make_shared<JieMaiCameraIpPort>(ip, port);
-		ip_port_for_cb_.emplace_back(share_ptr);
-	}
-	
 	ALARM_CHAN_ARA alarmChan;
 	memset(&alarmChan, 0, sizeof(ALARM_CHAN_ARA));
-	auto AlarmHandle = NET_DEV_SetupAlarmChan(userId, &alarmChan, MsgCallback, share_ptr.get());
+	auto AlarmHandle = NET_DEV_SetupAlarmChan(userId, &alarmChan, MsgCallback, user_data);
 	if (AlarmHandle == -1)
 	{
 		VIDEODETECTSERVER_ERROR("NET_DEV_SetupAlarmChan(userId:%d,camera(%s:%d)) failed:%d\n", userId, ip.c_str(), port, NET_DEV_GetLastError());
@@ -79,7 +64,7 @@ int ITS::JieMai::logout(OS_INT32 user_id)
 	{
 		VIDEODETECTSERVER_ERROR(" NET_DEV_Logout(user_id:%d) failed:%d,maybe resource Leak!!", user_id, NET_DEV_GetLastError());
 		return -1;
-	}	
+	}
 	return 0;
 }
 
@@ -90,7 +75,7 @@ int ITS::JieMai::stopJiemai()
 		if (iter.second.alarm_handle)
 			closeAlarmChan(iter.second.alarm_handle);
 		if (iter.second.user_id)
-			logout(iter.second.user_id);	
+			logout(iter.second.user_id);
 	}
 	auto ret = NET_DEV_Cleanup();
 	if (ret == OS_FALSE)

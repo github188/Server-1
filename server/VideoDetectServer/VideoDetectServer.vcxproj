@@ -130,6 +130,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CameraAttribute.h" />
     <ClInclude Include="CameraManager.h" />
     <ClInclude Include="crashDump.h" />
     <ClInclude Include="DbWriter.h" />

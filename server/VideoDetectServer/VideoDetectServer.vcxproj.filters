@@ -60,6 +60,9 @@
     <ClInclude Include="JieMai.h">
       <Filter>JieMai</Filter>
     </ClInclude>
+    <ClInclude Include="CameraAttribute.h">
+      <Filter>CameraManager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThreadPool.cpp">

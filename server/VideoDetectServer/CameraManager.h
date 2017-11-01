@@ -5,8 +5,10 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <unordered_set>
 #include <unordered_map>
 #include <thread>
+#include "CameraAttribute.h"
 class otl_connect;
 namespace ITS
 {
@@ -38,30 +40,8 @@ namespace ITS
 	const int DB_WRITER_THREAD_NUMBER = 1;
 	const int DB_WRITER_MAX_SQL_COUNT = 2000000; // can store nearly 1G sql in memory ,if each sql is less than 512 byte
 
-	enum class CameraChangeType
-	{
-		CameraAdd,
-		CameraReduce
-	};
-
-	typedef struct cameraattribute
-	{
-		uint16_t port;
-		std::string device_id;
-		std::string camera_vender;
-		std::string ip;
-		std::vector<std::string> lane_number;
-		bool operator ==(const cameraattribute& ca) const
-		{
-			return ((port == ca.port) && (device_id == ca.device_id)
-				&& (camera_vender == ca.camera_vender) && (ip == ca.ip) && lane_number == ca.lane_number);
-		}
-
-	}CameraAttribute;
-
 	typedef struct configmessage
 	{
-		int thread_num;
 		int keda_MaxNumConnect;
 		int sql_commit_size;
 		std::string db_UserName;
@@ -78,58 +58,35 @@ namespace ITS
 		std::string jiemai_password;
 	}ConfigMessage;
 
-	typedef struct cameraipport
-	{
-		std::string ip;
-		uint16_t port;
-
-		cameraipport(const std::string& Ip, uint16_t Port) :ip(Ip), port(Port) {}
-
-		bool operator ==(const cameraipport cip) const
-		{
-			return (ip == cip.ip && port == cip.port);
-		}
-	} CameraIpPort;
-
-	struct CameraIpPortHash
-	{
-		std::size_t operator()(const CameraIpPort& k) const
-		{
-			auto h1 = std::hash<std::string>()(k.ip);
-			auto h2 = std::hash<uint16_t>()(k.port);
-			return (h2 << 1) ^ (h1 >> 1); // or use boost::hash_combine
-		}
-	};
-
 	class CameraManager :public std::enable_shared_from_this<CameraManager>
 	{
+	public:
+		typedef std::unordered_set<CameraAttribute, CameraAttributeHash> CameraAttributeSet;
 	private:
 		bool run_;
-		std::mutex mtx_;
 		ConfigMessage cm_;
 		std::thread notify_camera_changed_thread_;
 		std::condition_variable has_notify_;
-		std::vector<CameraAttribute> camera_attribute_; //do not change frequently,so put into object rather than shared_ptr, just for comparing conveniently
-		std::queue<std::pair<CameraChangeType, std::vector<CameraAttribute>>> camera_data_;
+		CameraAttributeSet camera_attribute_; //do not change frequently,so put into object rather than shared_ptr, just for comparing conveniently
 		std::mutex number_mtx_;
-		std::unordered_map<CameraIpPort, std::string, CameraIpPortHash> camera_number_;
-		std::unordered_map<CameraIpPort, std::vector<std::string>, CameraIpPortHash> camera_lane_number_;
-	
+		std::unordered_map<CameraAttribute, std::string, CameraAttributeHash> camera_number_;
+		std::unordered_map<CameraAttribute, std::vector<std::string>, CameraAttributeHash> camera_lane_number_;
+		CameraAttributeSet camera_attribute_for_JMcallback_;
+		std::mutex mtx_for_JMcallback_;
 	public:
 		CameraManager() :run_(true) {}
 		void init();
-		void freeAllResource() 
+		void freeAllResource()
 		{
 			run_ = false;
 			has_notify_.notify_all();
-			if(notify_camera_changed_thread_.joinable())
+			if (notify_camera_changed_thread_.joinable())
 				notify_camera_changed_thread_.join();
 		}
 	private:
 		void getMessageFromIniConfigure(const std::string& dir);
-		void getCameraAttributeFromDB(std::vector<CameraAttribute>& camera_attribute, otl_connect & db);
-		bool isCameraChange(std::vector<CameraAttribute>& camera_attribute, std::vector<CameraAttribute>& camera_add,
-			std::vector<CameraAttribute>& camera_decrease);
+		void getCameraAttributeFromDB(CameraAttributeSet& camera_attribute, otl_connect & db);
+		bool isCameraChange(CameraAttributeSet& camera_attribute, CameraAttributeSet& camera_add, CameraAttributeSet& camera_decrease);
 		void notifyCameraChangedThread() noexcept;
 	};
 }
