@@ -138,8 +138,6 @@
     <ClInclude Include="LogMacros.h" />
     <ClInclude Include="ParseIni.h" />
     <ClInclude Include="SyncQueue.h" />
-    <ClInclude Include="TaskQueue.h" />
-    <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
@@ -148,7 +146,6 @@
     <ClCompile Include="JieMai.cpp" />
     <ClCompile Include="KeDa.cpp" />
     <ClCompile Include="ParseIni.cpp" />
-    <ClCompile Include="ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\shared\log\log.vcxproj">

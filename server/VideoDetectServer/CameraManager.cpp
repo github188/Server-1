@@ -14,7 +14,6 @@
 
 #include "LogMacros.h"
 #include "DbWriter.h"
-#include "ThreadPool.h"
 #include "ParseIni.h"
 
 void ITS::CameraManager::init()
@@ -35,8 +34,6 @@ void ITS::CameraManager::getMessageFromIniConfigure(const std::string & dir)
 	cm_.videoDetectDataTable_name = parser.getValue("DbConfig", "VideoDetectDataTableName");
 	cm_.videoDetectDataTable_name_history = parser.getValue("DbConfig", "VideoDetectDataTableHistoryName");
 	cm_.deviceTable_name = parser.getValue("DbConfig", "DeviceTableName");
-	cm_.thread_num = std::atoi(parser.getValue("ComConfig", "ThreadNum").c_str());
-	cm_.thread_num = cm_.thread_num >= 1 ? cm_.thread_num : 1;
 	cm_.keda_userName = parser.getValue("ComConfig", "KeDaUserName");
 	cm_.keda_password = parser.getValue("ComConfig", "KeDaPassword");
 	cm_.jiemai_userName = parser.getValue("ComConfig", "JieMaiUserName");
@@ -44,6 +41,7 @@ void ITS::CameraManager::getMessageFromIniConfigure(const std::string & dir)
 	cm_.keda_MaxNumConnect = std::atoi(parser.getValue("ComConfig", "KeDaMaxNumConnect").c_str());
 	cm_.sql_commit_size = std::atoi(parser.getValue("ComConfig", "SqlCommitSize").c_str());
 	cm_.sql_commit_size = cm_.sql_commit_size >= 1 ? cm_.sql_commit_size : 1;
+	cm_.open_JiemaiLog = std::atoi(parser.getValue("ComConfig", "OpenJiemaiLog").c_str());
 }
 
 void ITS::CameraManager::getCameraAttributeFromDB(std::vector<CameraAttribute>& camera_attribute, otl_connect & db)
@@ -93,15 +91,18 @@ bool ITS::CameraManager::isCameraChange(std::vector<CameraAttribute>& camera_att
 	{
 		if (!camera_attribute_.empty())
 		{
-			//std::for_each(camera_attribute.begin(), camera_attribute.end(), []() {});
-			for (auto iter = camera_attribute.begin(); iter != camera_attribute.end(); ++iter)
+			std::for_each(camera_attribute.begin(), camera_attribute.end(), [&camera_add, this](const CameraAttribute& ca)
 			{
-				auto iter_ = std::find(camera_attribute_.begin(), camera_attribute_.end(), *iter);
+				auto iter_ = std::find_if(camera_attribute_.begin(), camera_attribute_.end(), [&ca](const CameraAttribute& ca_)
+				{
+					return ((ca_.port == ca.port) && (ca_.camera_vender == ca.camera_vender)
+						&& (ca_.ip == ca.ip));
+				});
 				if (iter_ != camera_attribute_.end()) //both has this element
 					camera_attribute_.erase(iter_);
 				else //has added device
-					camera_add.emplace_back(*iter);
-			}
+					camera_add.emplace_back(ca);
+			});
 			if (!camera_attribute_.empty())//has decreasing device
 				camera_decrease.swap(camera_attribute_);
 			camera_attribute_.swap(camera_attribute);
@@ -176,7 +177,6 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 					CameraIpPort cip("", 0);
 					cip.ip = kdcip.ip;
 					cip.port = kdcip.port;
-					VIDEODETECTSERVER_DEBUG("get data from camera(%s:%d)", cip.ip.c_str(), cip.port);
 					std::string camera_number;
 					std::vector<std::string> lane_number;
 					std::unique_lock<std::mutex> locker_id(number_mtx_);
@@ -203,7 +203,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 					auto time_str = temp.str();
 					if (vfsin->dwLaneId == 0) //all lane has data
 					{
-						for (int i = 1; i < ROAD_NUM_MAX; i++)
+						for (int i = 0; i < ROAD_NUM_MAX; i++)
 						{
 							temp.clear();
 							temp.str("");
@@ -216,11 +216,11 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 								<< "," << "'" << vfsin->atFlowStat[i].dwStatCnts << "'"
 								<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')";
 							if (i <= static_cast<int>(lane_number_size))
-								temp << "," << "'" << lane_number[i - 1] << "'" << ")";
+								temp << "," << "'" << lane_number[i] << "'" << ")";
 							else
 								temp << "," << "'" << "" << "'" << ")";
 							dbWriter_ptr->addSql(temp.str());
-
+							VIDEODETECTSERVER_DEBUG("get data(%d:%d) from camera(%s:%d)", i, vfsin->atFlowStat[i].dwStatCnts, cip.ip.c_str(), cip.port);
 							auto sql_str = temp.str();
 							auto pos = sql_str.find(cm_.videoDetectDataTable_name);
 							auto sql_str_front = sql_str.substr(0, pos);
@@ -239,14 +239,14 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							CAMERA_LANE_NUMBER << ")"
 							<< " values (" << "'" << camera_number << "'"
 							<< "," << "'" << vfsin->dwLaneId << "'"
-							<< "," << "'" << vfsin->atFlowStat[vfsin->dwLaneId].dwStatCnts << "'"
+							<< "," << "'" << vfsin->atFlowStat[vfsin->dwLaneId-1].dwStatCnts << "'"
 							<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')";
 						if (vfsin->dwLaneId <= static_cast<int>(lane_number_size))
 							temp << "," << "'" << lane_number[vfsin->dwLaneId - 1] << "'" << ")";
 						else
 							temp << "," << "'" << "" << "'" << ")";
 						dbWriter_ptr->addSql(temp.str());
-
+						VIDEODETECTSERVER_DEBUG("get data(%d:%d) from camera(%s:%d)", vfsin->dwLaneId, vfsin->atFlowStat[vfsin->dwLaneId - 1], cip.ip.c_str(), cip.port);
 						auto sql_str = temp.str();
 						auto pos = sql_str.find(cm_.videoDetectDataTable_name);
 						auto sql_str_front = sql_str.substr(0, pos);
@@ -315,6 +315,8 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 		};
 
 		JieMai_sharedPtr->initJiemai();
+		if (!cm_.open_JiemaiLog)
+			JieMai_sharedPtr->closeJiemaiLog();
 		JieMai::cb_ = [dbWriter_ptr, shared_this, this](OS_INT32 lAlarmType, NET_DEV_ALARMER* /*pAlarmer*/,
 			char *pAlarmInfo, OS_UINT32 /*dwBufLen*/, OS_VOIDPTR pUser)
 		{
@@ -326,7 +328,6 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 					CameraIpPort cip("", 0);
 					cip.ip = ip_port_ptr->ip;
 					cip.port = ip_port_ptr->port;
-					VIDEODETECTSERVER_DEBUG("get data from camera(%s:%d)", cip.ip.c_str(), cip.port);
 					std::string camera_number;
 					std::vector<std::string> lane_number;
 					std::unique_lock<std::mutex> locker_id(number_mtx_);
@@ -368,7 +369,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 						else
 							temp << "," << "'" << "" << "'" << ")";
 						dbWriter_ptr->addSql(temp.str());
-
+						VIDEODETECTSERVER_DEBUG("get data(%d:%d) from camera(%s:%d)", i + 1, AlarmIn->s_FlowStatInfo[i].s_VehicleTotalCount, cip.ip.c_str(), cip.port);
 						auto sql_str = temp.str();
 						auto pos = sql_str.find(cm_.videoDetectDataTable_name);
 						auto sql_str_front = sql_str.substr(0, pos);
@@ -601,7 +602,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							auto jiemai_password = cm_.jiemai_password;
 							auto sub_type = iter->camera_vender;
 							std::thread thread([JieMai_sharedPtr, jmcip, jiemai_userName, jiemai_password, sub_type]()
-							{
+							{	
 								VIDEODETECTSERVER_INFO("thread(%d) begin to login(%s:%d-%s)", std::this_thread::get_id(), jmcip.ip.c_str(), jmcip.port, sub_type.c_str());
 								while (true)
 								{

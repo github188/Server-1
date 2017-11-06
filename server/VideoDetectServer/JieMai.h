@@ -58,6 +58,7 @@ namespace ITS
 			OS_INT32& user_id, OS_INT32& alarm_handle);
 		int logout(OS_INT32 user_id);
 		int stopJiemai();
+		int closeJiemaiLog();
 		int closeAlarmChan(const OS_INT32 alarm_handle);
 	private:
 		static void SDKCALL MsgCallback(OS_INT32 lAlarmType, NET_DEV_ALARMER *pAlarmer,

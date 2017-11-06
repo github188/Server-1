@@ -101,6 +101,19 @@ int ITS::JieMai::stopJiemai()
 	return 0;
 }
 
+int ITS::JieMai::closeJiemaiLog()
+{
+	NET_DEV_SDK_LOG log_param;
+	log_param.byEnableFile = 0;
+	auto ret = NET_DEV_ConfigSDKLog(&log_param);
+	if (ret == OS_FALSE)
+	{
+		VIDEODETECTSERVER_WARN("NET_DEV_ConfigSDKLog failed:%d", NET_DEV_GetLastError());
+		return -1;
+	}
+	return 0;
+}
+
 int ITS::JieMai::closeAlarmChan(const OS_INT32 alarm_handle)
 {
 	auto ret = NET_DEV_CloseAlarmChan(alarm_handle);

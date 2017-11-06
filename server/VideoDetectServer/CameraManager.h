@@ -38,12 +38,6 @@ namespace ITS
 	const int DB_WRITER_THREAD_NUMBER = 1;
 	const int DB_WRITER_MAX_SQL_COUNT = 2000000; // can store nearly 1G sql in memory ,if each sql is less than 512 byte
 
-	enum class CameraChangeType
-	{
-		CameraAdd,
-		CameraReduce
-	};
-
 	typedef struct cameraattribute
 	{
 		uint16_t port;
@@ -64,6 +58,7 @@ namespace ITS
 		int thread_num;
 		int keda_MaxNumConnect;
 		int sql_commit_size;
+		int open_JiemaiLog; // 1-OPEN ,0-CLOSE
 		std::string db_UserName;
 		std::string db_ip;
 		std::string db_port;
@@ -110,7 +105,6 @@ namespace ITS
 		std::thread notify_camera_changed_thread_;
 		std::condition_variable has_notify_;
 		std::vector<CameraAttribute> camera_attribute_; //do not change frequently,so put into object rather than shared_ptr, just for comparing conveniently
-		std::queue<std::pair<CameraChangeType, std::vector<CameraAttribute>>> camera_data_;
 		std::mutex number_mtx_;
 		std::unordered_map<CameraIpPort, std::string, CameraIpPortHash> camera_number_;
 		std::unordered_map<CameraIpPort, std::vector<std::string>, CameraIpPortHash> camera_lane_number_;
