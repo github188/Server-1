@@ -239,7 +239,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							CAMERA_LANE_NUMBER << ")"
 							<< " values (" << "'" << camera_number << "'"
 							<< "," << "'" << vfsin->dwLaneId << "'"
-							<< "," << "'" << vfsin->atFlowStat[vfsin->dwLaneId-1].dwStatCnts << "'"
+							<< "," << "'" << vfsin->atFlowStat[vfsin->dwLaneId - 1].dwStatCnts << "'"
 							<< "," << "to_date('" << time_str << "','YYYY-MM-DD HH24:MI:SS')";
 						if (vfsin->dwLaneId <= static_cast<int>(lane_number_size))
 							temp << "," << "'" << lane_number[vfsin->dwLaneId - 1] << "'" << ")";
@@ -392,7 +392,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 		{
 			try
 			{
-				if (dwType == EXCP_HEARTBEAT_FAIL)
+				if (dwType == EXCP_HEARTBEAT_FAIL || dwType == EXCP_ALARMCHAN_FAIL)
 				{
 					auto jiemai_userName = cm_.jiemai_userName;
 					auto jiemai_password = cm_.jiemai_password;
@@ -602,7 +602,7 @@ void ITS::CameraManager::notifyCameraChangedThread() noexcept
 							auto jiemai_password = cm_.jiemai_password;
 							auto sub_type = iter->camera_vender;
 							std::thread thread([JieMai_sharedPtr, jmcip, jiemai_userName, jiemai_password, sub_type]()
-							{	
+							{
 								VIDEODETECTSERVER_INFO("thread(%d) begin to login(%s:%d-%s)", std::this_thread::get_id(), jmcip.ip.c_str(), jmcip.port, sub_type.c_str());
 								while (true)
 								{
