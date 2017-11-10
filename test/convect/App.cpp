@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <map>
 std::string gb2312_to_utf8(std::string const &strGb2312)
 {
 	std::vector<wchar_t> buff(strGb2312.size());
@@ -69,6 +70,14 @@ const int Point::operator()(int x)
 
 int main()
 {
+	std::vector<int> vec73;
+	vec73.emplace_back(1);
+
+	wchar_t * w_p =  L"12";
+	std::map<int, bool> s;
+	s[1];
+
+
 	{
 		std::shared_ptr<int> p(new int(5));
 		auto p1 = std::move(p);

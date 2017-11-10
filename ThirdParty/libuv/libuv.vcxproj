@@ -18,34 +18,78 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\fs-poll.c" />
+    <ClCompile Include="src\inet.c" />
+    <ClCompile Include="src\threadpool.c" />
+    <ClCompile Include="src\uv-common.c" />
+    <ClCompile Include="src\version.c" />
+    <ClCompile Include="src\win\async.c" />
+    <ClCompile Include="src\win\core.c" />
+    <ClCompile Include="src\win\dl.c" />
+    <ClCompile Include="src\win\error.c" />
+    <ClCompile Include="src\win\fs-event.c" />
+    <ClCompile Include="src\win\fs.c" />
+    <ClCompile Include="src\win\getaddrinfo.c" />
+    <ClCompile Include="src\win\getnameinfo.c" />
+    <ClCompile Include="src\win\handle.c" />
+    <ClCompile Include="src\win\loop-watcher.c" />
+    <ClCompile Include="src\win\pipe.c" />
+    <ClCompile Include="src\win\poll.c" />
+    <ClCompile Include="src\win\process-stdio.c" />
+    <ClCompile Include="src\win\process.c" />
+    <ClCompile Include="src\win\req.c" />
+    <ClCompile Include="src\win\signal.c" />
+    <ClCompile Include="src\win\stream.c" />
+    <ClCompile Include="src\win\tcp.c" />
+    <ClCompile Include="src\win\thread.c" />
+    <ClCompile Include="src\win\timer.c" />
+    <ClCompile Include="src\win\tty.c" />
+    <ClCompile Include="src\win\udp.c" />
+    <ClCompile Include="src\win\util.c" />
+    <ClCompile Include="src\win\winapi.c" />
+    <ClCompile Include="src\win\winsock.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\heap-inl.h" />
+    <ClInclude Include="src\queue.h" />
+    <ClInclude Include="src\uv-common.h" />
+    <ClInclude Include="src\win\atomicops-inl.h" />
+    <ClInclude Include="src\win\handle-inl.h" />
+    <ClInclude Include="src\win\internal.h" />
+    <ClInclude Include="src\win\req-inl.h" />
+    <ClInclude Include="src\win\stream-inl.h" />
+    <ClInclude Include="src\win\winapi.h" />
+    <ClInclude Include="src\win\winsock.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{23761E4E-6FAB-4707-9115-F25F85A22112}</ProjectGuid>
-    <RootNamespace>convect</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <ProjectGuid>{58E31C43-5F19-4C68-8381-EF253967AA9B}</ProjectGuid>
+    <RootNamespace>libuv</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -89,14 +133,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>src;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>src;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -105,7 +151,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>src;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -118,16 +165,14 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>src;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="App.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
