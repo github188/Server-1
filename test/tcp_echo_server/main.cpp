@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fstream>
 #include "uv.h"
-
 
 #define DEFAULT_PORT 7000
 #define DEFAULT_BACKLOG 128
@@ -10,11 +10,7 @@
 #pragma comment(lib, "IPHLPAPI.lib")
 #pragma comment(lib, "Psapi.lib")
 #pragma comment(lib, "Userenv.lib")
-typedef struct
-{
-	uv_write_t req;
-	uv_buf_t buf;
-} write_req_t;
+const int WRITE_SIZE = 128;
 
 int main()
 {
@@ -37,6 +33,15 @@ int main()
 		uv_tcp_init(server->loop, client);
 		if (uv_accept(server, (uv_stream_t*)client) == 0)
 		{
+			//R"(C:/Users/ww/Desktop/iTS_Services_V1.0.234.26886_BNA_x86.exe)"
+			auto fout_ptr = new std::ofstream(R"(C:/Users/ww/Desktop/iTS_Services_V1.0.234.26886_BNA_x86.exe)"
+				, std::ios::binary | std::ios::app | std::ios::out);
+			if (fout_ptr->bad())
+			{
+				uv_close((uv_handle_t*)client, NULL);
+				return;
+			}
+			((uv_stream_t*)client)->data = fout_ptr;
 			uv_read_start((uv_stream_t*)client, 
 				[](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 			{
@@ -45,11 +50,12 @@ int main()
 			},
 				[](uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
 			{
+				auto fout_ptr = (std::ofstream*)(client->data);
 				if (nread > 0)
 				{
-					write_req_t *req = (write_req_t*)malloc(sizeof(write_req_t));
-					req->buf = uv_buf_init(buf->base, nread);
-					uv_write((uv_write_t*)req, client, &req->buf, 1, [](uv_write_t *req, int status)
+					fout_ptr->write(buf->base, nread);
+					printf("%i\n", nread);
+				/*	uv_write((uv_write_t*)req, client, &req->buf, 1, [](uv_write_t *req, int status)
 					{
 						if (status)
 						{
@@ -58,22 +64,21 @@ int main()
 						write_req_t *wr = (write_req_t*)req;
 						free(wr->buf.base);
 						free(wr);
-					});
-					return;
+					});*/
 				}
 				if (nread < 0)
 				{
 					if (nread != UV_EOF)
 						fprintf(stderr, "Read error %s\n", uv_err_name(nread));
 					uv_close((uv_handle_t*)client, NULL);
+					fout_ptr->close();
+					delete fout_ptr;
 				}
 				free(buf->base);
 			});
 		}
 		else
-		{
 			uv_close((uv_handle_t*)client, NULL);
-		}
 	});
 	if (r)
 	{
