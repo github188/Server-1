@@ -5,6 +5,8 @@
 #include <memory>
 #include <set>
 #include <map>
+#include <functional>
+#include <thread>
 std::string gb2312_to_utf8(std::string const &strGb2312)
 {
 	std::vector<wchar_t> buff(strGb2312.size());
@@ -32,6 +34,10 @@ struct MyStruct
 {
 	int a;
 	int b;
+	~MyStruct()
+	{
+		int x;
+	}
 };
 
 struct MyStruct1
@@ -70,12 +76,35 @@ const int Point::operator()(int x)
 
 int main()
 {
+	std::vector<std::string> m_str[2];
+	m_str[0].push_back("1");
+	m_str[1].push_back("2");
+
+	auto x = m_str[0][0];
+
+	
+	
+
+
+	std::map<int, MyStruct> map77;
+	
+	MyStruct MyStruct78;
+	MyStruct78.a = 1;
+	MyStruct78.b = 2;
+	map77.emplace(1, MyStruct78);
+	auto first = map77.begin();
+	auto first_value = first->second;
+	map77.clear();
+
+
 	std::vector<int> vec73;
 	vec73.emplace_back(1);
 
 	wchar_t * w_p =  L"12";
 	std::map<int, bool> s;
 	s[1];
+	auto iter = s.begin();
+	
 
 
 	{
