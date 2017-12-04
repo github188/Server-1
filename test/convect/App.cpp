@@ -76,6 +76,17 @@ const int Point::operator()(int x)
 
 int main()
 {
+	try
+	{
+		std::vector<std::string> vec;
+		auto x = vec[0];
+	}
+	catch (const std::exception& e)
+	{
+		auto ss = e.what();
+	}
+
+
 	std::vector<std::string> m_str[2];
 	m_str[0].push_back("1");
 	m_str[1].push_back("2");
@@ -142,7 +153,7 @@ int main()
 	auto utf8 = gb2312_to_utf8(gbk);
 	auto utf8_str = utf8.c_str();
 
-	std::set<int> test_set{ 1 };
-	auto iter = test_set.find(1);
-	auto p = &(*iter);
+	//std::set<int> test_set{ 1 };
+	//auto iter = test_set.find(1);
+	//auto p = &(*iter);
 }
