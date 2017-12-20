@@ -76,9 +76,15 @@ const int Point::operator()(int x)
 
 int main()
 {
+	std::shared_ptr<int> x;
+	if (x == nullptr)
+	{
+
+	}
 	try
 	{
 		std::vector<std::string> vec;
+		
 		auto x = vec[0];
 	}
 	catch (const std::exception& e)
@@ -86,7 +92,7 @@ int main()
 		auto ss = e.what();
 	}
 
-
+	
 	std::vector<std::string> m_str[2];
 	m_str[0].push_back("1");
 	m_str[1].push_back("2");

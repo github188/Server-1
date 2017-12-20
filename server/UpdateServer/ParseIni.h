@@ -10,7 +10,6 @@ namespace WwFoundation
 		ParseIni(const std::string& StrPath) :strPath_(StrPath) {}
 		void parse();
 		std::string& getValue(const std::string& section, const std::string& key);
-		std::unordered_map<std::string, std::string>& getSectionValue(const std::string& section);
 	private:
 		void trim(std::string& s);
 		std::string& getSection(std::string& strText);

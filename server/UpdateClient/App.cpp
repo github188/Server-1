@@ -1,12 +1,22 @@
+#include <algorithm>
 #include "ParseIni.h"
 #include "Client.h"
-#include <thread>
+
 int main()
 {
-	boost::asio::io_service io_service;
-	auto client_ptr= std::make_shared<update::Client>(io_service, "192.168.1.199", static_cast<uint16_t>(7000), "update.exe");
-	client_ptr->go();
-	io_service.run();
-	
+	WwFoundation::ParseIni paser("updateClient.ini");
+	paser.parse();
+	auto instal_packet_name = paser.getValue("InstallPacketNmaeConfig", "name");
+	auto port = static_cast<uint16_t>(std::atoi(paser.getValue("PortConfig", "port").c_str()));
+	auto ip_set = paser.getSectionValue("IpConfig");
+	update::client::Client client;
+	std::for_each(ip_set.begin(), ip_set.end(),
+		[&client, &port, &instal_packet_name](auto& pair)
+	{
+		client.addServerInstallMessage(pair.second, port, instal_packet_name);
+	});
+	client.run();
+	client.stop();
+	system("pause"); // for reading message about this update
 	return 0;
 }

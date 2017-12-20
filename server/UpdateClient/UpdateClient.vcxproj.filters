@@ -13,6 +13,12 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="IoServicePool">
+      <UniqueIdentifier>{28182ee2-18e2-4738-91c0-2e650e32a743}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Session">
+      <UniqueIdentifier>{68febab9-165d-4cd8-85cf-24725d38d5fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">
@@ -21,6 +27,15 @@
     <ClCompile Include="ParseIni.cpp">
       <Filter>ParseIni</Filter>
     </ClCompile>
+    <ClCompile Include="IoServicePool.cpp">
+      <Filter>IoServicePool</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp">
+      <Filter>Session</Filter>
+    </ClCompile>
+    <ClCompile Include="Client.cpp">
+      <Filter>Client</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ParseIni.h">
@@ -28,6 +43,12 @@
     </ClInclude>
     <ClInclude Include="Client.h">
       <Filter>Client</Filter>
+    </ClInclude>
+    <ClInclude Include="IoServicePool.h">
+      <Filter>IoServicePool</Filter>
+    </ClInclude>
+    <ClInclude Include="Session.h">
+      <Filter>Session</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -37,11 +37,6 @@ std::string& WwFoundation::ParseIni::getValue(const std::string& section, const 
 	return section_keyValue_[section][key];
 }
 
-std::unordered_map<std::string, std::string>& WwFoundation::ParseIni::getSectionValue(const std::string & section)
-{
-	return section_keyValue_[section];
-}
-
 void WwFoundation::ParseIni::trim(std::string & s)
 {
 	if (s != "")

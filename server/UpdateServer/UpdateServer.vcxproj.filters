@@ -1,18 +1,74 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="头文件">
+    <Filter Include="Update">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="App">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ParseIni">
+      <UniqueIdentifier>{aa16303f-a929-46d6-8180-4b492ab32dda}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="log">
+      <UniqueIdentifier>{64e11b39-283c-4a2c-8409-160c93b24c94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Server">
+      <UniqueIdentifier>{67fdd354-697c-4026-9cbe-7d63e80ced2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Update_installPacket">
+      <UniqueIdentifier>{d2de0ef2-6f74-41b2-ac5b-adbdcc12c9ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Update_binaryReplace">
+      <UniqueIdentifier>{66676533-33bf-437b-b46a-abd74a127c52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Session">
+      <UniqueIdentifier>{8a545052-87c8-4f30-99f8-2a72f1652796}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="App.cpp">
+      <Filter>App</Filter>
     </ClCompile>
+    <ClCompile Include="ParseIni.cpp">
+      <Filter>ParseIni</Filter>
+    </ClCompile>
+    <ClCompile Include="Server.cpp">
+      <Filter>Server</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp">
+      <Filter>Session</Filter>
+    </ClCompile>
+    <ClCompile Include="Update_installPacket.cpp">
+      <Filter>Update_installPacket</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Update.h">
+      <Filter>Update</Filter>
+    </ClInclude>
+    <ClInclude Include="ParseIni.h">
+      <Filter>ParseIni</Filter>
+    </ClInclude>
+    <ClInclude Include="crashDump.h">
+      <Filter>log</Filter>
+    </ClInclude>
+    <ClInclude Include="LogMacros.h">
+      <Filter>log</Filter>
+    </ClInclude>
+    <ClInclude Include="Session.h">
+      <Filter>Session</Filter>
+    </ClInclude>
+    <ClInclude Include="Server.h">
+      <Filter>Server</Filter>
+    </ClInclude>
+    <ClInclude Include="Update_installPacket.h">
+      <Filter>Update_installPacket</Filter>
+    </ClInclude>
+    <ClInclude Include="Update_binaryReplace.h">
+      <Filter>Update_binaryReplace</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
