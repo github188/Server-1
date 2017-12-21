@@ -1,4 +1,6 @@
 #include "Session.h"
+#include <mutex>
+#include <thread>
 #include "boost/asio/spawn.hpp"
 #include "boost/asio/write.hpp"
 
@@ -9,6 +11,11 @@ void update::client::Session::go()
 	{
 		try
 		{
+			std::once_flag one;
+			std::call_once(one,[]() 
+			{
+				printf("%d\n", std::this_thread::get_id());
+			});
 			//once send unsuccessfully,must do all again. All successfully or all unsuccessfully
 			socket_.async_connect(endpoint_, yield); 
 			int size = static_cast<int>(update_file_name_vec_.size());
@@ -17,7 +24,7 @@ void update::client::Session::go()
 				auto update_file_name = update_file_name_vec_[i];
 				boost::system::error_code ec;
 				auto file_ptr = std::make_shared<boost::asio::windows::random_access_handle>(socket_.get_io_service());
-				file_ptr->assign(CreateFile(update_file_name.c_str(), GENERIC_READ, 0, 0,
+				file_ptr->assign(CreateFile(update_file_name.c_str(), GENERIC_READ, FILE_SHARE_READ, 0,
 					OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, 0), ec);
 				file_vec_.emplace_back(file_ptr);
 				auto buffer_size = HEAD_SIZE + update_file_name.length();
@@ -73,7 +80,7 @@ void update::client::Session::go()
 			auto str = e.what();
 			boost::system::error_code ec;
 			auto endpoint = socket_.remote_endpoint(ec);
-			printf("%s,%s update failed! Please try again for next time", str, endpoint.address().to_string().c_str());
+			printf("%s,%s update failed! Please try again for next time\n", str, endpoint.address().to_string().c_str());
 		}
 
 		if (socket_.is_open())

@@ -18,7 +18,7 @@ void update::client::IoServicePool::start()
 	auto self = shared_from_this();
 	for (int i = 0; i < static_cast<int>(size); ++i)
 	{
-		auto thread_ptr = std::make_shared<std::thread>([self, this, &i]()
+		auto thread_ptr = std::make_shared<std::thread>([self, this, i]()
 		{
 			try
 			{
@@ -39,11 +39,11 @@ void update::client::IoServicePool::start()
 
 void update::client::IoServicePool::stop()
 {
-	auto work_vec_size = work_vec_.size();
+	/*auto work_vec_size = work_vec_.size();
 	for (int i = 0; i < static_cast<int>(work_vec_size); ++i)
 	{
 		work_vec_[i]->~work();
-	}
+	}*/
 
 	auto size = thread_vec_.size();
 	for (int i = 0; i < static_cast<int>(size); ++i)

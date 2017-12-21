@@ -4,6 +4,7 @@
 #include <vector>
 #include "boost/asio/ip/tcp.hpp"
 #include "boost/asio/windows/random_access_handle.hpp"
+#include "boost/asio/io_service.hpp"
 
 namespace update
 {
@@ -21,7 +22,7 @@ namespace update
 			std::vector<std::shared_ptr<boost::asio::windows::random_access_handle>> file_vec_;
 		public:
 			explicit Session(boost::asio::io_service& io_service, const std::string& server_addr,
-				const uint16_t port, std::vector<std::string>& update_file_name_vec)
+				const uint16_t port,const std::vector<std::string>& update_file_name_vec)
 				:socket_(io_service),
 				endpoint_(boost::asio::ip::address::from_string(server_addr), port),
 				update_file_name_vec_(std::move(update_file_name_vec)) {}

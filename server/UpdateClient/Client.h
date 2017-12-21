@@ -10,7 +10,7 @@
 namespace update { 
 	namespace client { 
 		class IoServicePool;
-		class Session;
+		//class Session;
 	} 
 }
 
@@ -46,12 +46,11 @@ namespace update
 		private:
 			std::unordered_map<ServerIpPort, std::vector<std::string>, ServerIpPortHash> server_install_message_;
 			std::shared_ptr<IoServicePool> io_service_pool_ptr_;
-			std::shared_ptr<Session> session_ptr_;
 		public:
 			Client(){}
-			void addServerInstallMessage(const std::string& ip, const uint16_t port,
+			void makeSession(const std::string& ip, const uint16_t port,
 				const std::vector<std::string>& update_file_name_vec);
-			void addServerInstallMessage(const std::string& ip, const uint16_t port, const std::string& update_file_name_vec);
+			void makeSession(const std::string& ip, const uint16_t port, const std::string& update_file_name_vec);
 			void run();
 			void stop();
 		private:
