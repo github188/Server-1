@@ -36,7 +36,7 @@ namespace update
 					0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hkey, NULL);
 				if (ret == 0)
 				{
-					DWORD size = 0;
+					DWORD size = 1024;
 					char buf[1024] = { 0 };
 					DWORD type = REG_SZ;
 					ret = RegQueryValueEx(hkey, "Inno Setup: Selected Components", NULL, &type, reinterpret_cast<BYTE *>(buf), &size);
