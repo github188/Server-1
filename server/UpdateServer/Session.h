@@ -11,8 +11,6 @@ namespace update
 {
 	namespace server
 	{
-		const std::string FILE_FOLDER = "../update";
-
 		class session : public std::enable_shared_from_this<session>
 		{
 		private:

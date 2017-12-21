@@ -8,6 +8,8 @@ namespace update
 {
 	namespace server
 	{
+		const std::string FILE_FOLDER = "../update/";
+
 		struct UpdateInstallPacket
 		{
 			void update(const std::string& install_packet_name, const std::string& last_time_components);
